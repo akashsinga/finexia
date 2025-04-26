@@ -10,6 +10,7 @@ class Symbol(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
+    security_id = Column(String, nullable=False)  # <-- NEW FIELD
     exchange = Column(String, nullable=False)
     trading_symbol = Column(String, nullable=False)
     name = Column(String, nullable=False)

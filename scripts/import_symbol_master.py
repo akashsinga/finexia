@@ -29,20 +29,21 @@ def import_symbols():
     # Load full CSV
     df_full = pd.read_csv("api_scrip_master.csv")
 
-    # Build Derivatives symbol list (only FUTSTK and OPTSTK)
-    fo_symbols_list = df_full[(df_full['SEM_SEGMENT'] == 'D') & (df_full['SEM_EXCH_INSTRUMENT_TYPE'].isin(['FUTSTK', 'OPTSTK']))]['SEM_TRADING_SYMBOL'].tolist()
+    # Build Derivatives symbol list
+    fo_symbols_list = df_full[(df_full['SEM_SEGMENT'] == 'D') &(df_full['SEM_EXCH_INSTRUMENT_TYPE'].isin(['FUTSTK', 'OPTSTK']))]['SEM_TRADING_SYMBOL'].tolist()
 
-    # Filter only Equity stocks (SEM_SEGMENT = 'E', SEM_EXCH_INSTRUMENT_TYPE = 'ES')
-    df = df_full[(df_full['SEM_SEGMENT'] == 'E') & (df_full['SEM_EXCH_INSTRUMENT_TYPE'] == 'ES')]
+    # Filter only Equity stocks
+    df = df_full[(df_full['SEM_SEGMENT'] == 'E') &(df_full['SEM_EXCH_INSTRUMENT_TYPE'] == 'ES')]
 
     mapped_records = []
 
     for _, row in df.iterrows():
+        security_id = str(row.get('SEM_SMST_SECURITY_ID', ''))
         exchange = row.get('SEM_EXM_EXCH_ID', '')
         trading_symbol = row.get('SEM_TRADING_SYMBOL', '')
         name = row.get('SM_SYMBOL_NAME', '')
         instrument_type = "EQUITY"
-        segment = f"{exchange}-EQ"
+        segment = f"{exchange}_EQ"
 
         # Convert lot_size safely to int
         try:
@@ -53,11 +54,12 @@ def import_symbols():
 
         active = True
 
-        # Check if any derivative symbol starts with "trading_symbol-"
+        # Check F&O eligibility
         fo_eligible = any(derivative.startswith(trading_symbol + '-') for derivative in fo_symbols_list)
 
         # Create Symbol ORM object
         symbol_obj = Symbol(
+            security_id=security_id,
             exchange=exchange,
             trading_symbol=trading_symbol,
             name=name,
