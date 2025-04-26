@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+pydantic
+requests
+pandas
+scikit-learn
+joblib
+python-dotenv
