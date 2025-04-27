@@ -29,11 +29,14 @@ def import_symbols():
     # Load full CSV
     df_full = pd.read_csv("api_scrip_master.csv")
 
-    # Build Derivatives symbol list
+    # Build Derivatives symbol list (from full CSV — no NSE filtering here)
     fo_symbols_list = df_full[(df_full['SEM_SEGMENT'] == 'D') &(df_full['SEM_EXCH_INSTRUMENT_TYPE'].isin(['FUTSTK', 'OPTSTK']))]['SEM_TRADING_SYMBOL'].tolist()
 
-    # Filter only Equity stocks
-    df = df_full[(df_full['SEM_SEGMENT'] == 'E') &(df_full['SEM_EXCH_INSTRUMENT_TYPE'] == 'ES')]
+    # Now Filter only NSE Equity Stocks
+    df = df_full[(df_full['SEM_SEGMENT'] == 'E') &(df_full['SEM_EXCH_INSTRUMENT_TYPE'] == 'ES') &(df_full['SEM_EXM_EXCH_ID'] == 'NSE')]
+
+    print(f"[INFO] Total NSE Equity symbols found: {len(df)}")
+    print(f"[INFO] Total Derivatives symbols found: {len(fo_symbols_list)}")
 
     mapped_records = []
 
@@ -54,7 +57,7 @@ def import_symbols():
 
         active = True
 
-        # Check F&O eligibility
+        # Check F&O eligibility correctly now
         fo_eligible = any(derivative.startswith(trading_symbol + '-') for derivative in fo_symbols_list)
 
         # Create Symbol ORM object
@@ -77,7 +80,7 @@ def import_symbols():
     try:
         session.bulk_save_objects(mapped_records)
         session.commit()
-        print(f"[INFO] Inserted {len(mapped_records)} symbols into the database.")
+        print(f"[INFO] Inserted {len(mapped_records)} NSE symbols into the database.")
     except Exception as e:
         session.rollback()
         print(f"[ERROR] Failed to insert symbols: {e}")
