@@ -15,19 +15,13 @@ class FeatureData(Base):
     date = Column(Date, nullable=False, index=True)
 
     # Price Action Features
-    price_change_t_1 = Column(Float)
     gap_pct = Column(Float)
     hl_range = Column(Float)
     body_to_range_ratio = Column(Float)
-    lower_wick_pct = Column(Float)
-    upper_wick_pct = Column(Float)
-    closing_strength = Column(Float)
 
     # Trend / Momentum Features
     distance_from_ema_5 = Column(Float)
     return_3d = Column(Float)
-    return_5d = Column(Float)
-    position_in_range_5d = Column(Float)
     atr_5 = Column(Float)
 
     # Volume / Volatility Features
