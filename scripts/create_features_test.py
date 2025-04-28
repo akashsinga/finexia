@@ -90,7 +90,12 @@ def create_features_for_one_symbol(target_symbol: str = "RELIANCE"):
             return_3d=row["return_3d"],
             atr_5=row["atr_5"],
             hl_range=row["hl_range"],
-            fo_eligible=row['fo_eligible']
+            fo_eligible=row['fo_eligible'],
+            rsi_14=row["rsi_14"],
+            close_ema50_gap_pct=row["close_ema50_gap_pct"],
+            open_gap_pct=row["open_gap_pct"],
+            macd_histogram=row["macd_histogram"],
+            atr_14_normalized=row["atr_14_normalized"]
         )
         feature_objects.append(feature)
 
@@ -105,4 +110,4 @@ def create_features_for_one_symbol(target_symbol: str = "RELIANCE"):
         session.close()
 
 if __name__ == "__main__":
-    create_features_for_one_symbol(target_symbol="RELIANCE")  # <-- You can change this easily
+    create_features_for_one_symbol(target_symbol="TATAMOTORS")  # <-- You can change this easily

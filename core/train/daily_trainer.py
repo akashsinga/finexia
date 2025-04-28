@@ -1,5 +1,3 @@
-# core/train/daily_trainer.py
-
 import os
 import pandas as pd
 import joblib
@@ -15,12 +13,10 @@ from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from core.config import (RANDOM_FOREST, XGBOOST, LIGHTGBM, DEFAULT_DAILY_STRONG_MOVE_THRESHOLD, RANDOM_FOREST_N_ESTIMATORS, RANDOM_FOREST_MAX_DEPTH, RANDOM_SEED, RANDOM_FOREST_MIN_SAMPLES, RANDOM_FOREST_CLASS_WEIGHT, LIGHTGBM_N_ESTIMATORS, LIGHTGBM_LEARNING_RATE, LIGHTGBM_MAX_DEPTH, LIGHTGBM_NUM_LEAVES, LIGHTGBM_MIN_CHILD_WEIGHT, get_daily_model_path)
 
 def timestamped_log(message: str):
-    """Utility to print logs with timestamps."""
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     print(f"[{now}] {message}")
 
 def get_classifier(classifier_name: str, scale_pos_weight: float = 1.0):
-    """Create and return a single classifier instance."""
     if classifier_name == RANDOM_FOREST:
         return RandomForestClassifier(n_estimators=RANDOM_FOREST_N_ESTIMATORS, max_depth=RANDOM_FOREST_MAX_DEPTH, min_samples_split=RANDOM_FOREST_MIN_SAMPLES, random_state=RANDOM_SEED, class_weight=RANDOM_FOREST_CLASS_WEIGHT)
     elif classifier_name == XGBOOST:
@@ -39,7 +35,6 @@ def get_classifier(classifier_name: str, scale_pos_weight: float = 1.0):
         raise ValueError(f"Unsupported classifier: {classifier_name}")
 
 def train_direction_model(df: pd.DataFrame, feature_cols: List[str], classifier_names: List[str]):
-    """Train and save the Direction Model (only on strong movers)."""
     timestamped_log("Starting Direction Model training...")
 
     df_direction = df[df["strong_move_target"] == 1].copy()
@@ -51,7 +46,6 @@ def train_direction_model(df: pd.DataFrame, feature_cols: List[str], classifier_
     X_dir = df_direction[feature_cols]
     y_dir = df_direction["direction_target"]
 
-    # Use TimeSeriesSplit for Direction Model
     tscv = TimeSeriesSplit(n_splits=5)
     train_index, test_index = list(tscv.split(X_dir))[-1]
 
@@ -79,20 +73,14 @@ def train_direction_model(df: pd.DataFrame, feature_cols: List[str], classifier_
     y_dir_pred = direction_model.predict(X_dir_test)
     timestamped_log("Direction Model Evaluation:\n" + classification_report(y_dir_test, y_dir_pred))
 
-    # Save
     direction_model_filename = "direction_" + "_".join(classifier_names) + ".pkl"
     direction_model_save_path = os.path.join(os.path.dirname(get_daily_model_path("dummy")), direction_model_filename)
     joblib.dump(direction_model, direction_model_save_path)
     timestamped_log(f"Direction Model saved to {direction_model_save_path}")
 
 def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent=DEFAULT_DAILY_STRONG_MOVE_THRESHOLD):
-    """
-    Train classifiers for predicting strong movers and direction.
-    """
-
     session: Session = SessionLocal()
 
-    # Load features and close prices
     timestamped_log("Loading feature and close price data...")
     features = session.query(FeatureData).all()
     closes = session.query(EODData.trading_symbol, EODData.exchange, EODData.date, EODData.close).all()
@@ -102,7 +90,6 @@ def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent
         timestamped_log("No feature or close data found! Exiting...")
         return
 
-    # Convert to DataFrames
     features_df = pd.DataFrame([{
         "trading_symbol": f.trading_symbol,
         "exchange": f.exchange,
@@ -117,7 +104,12 @@ def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent
         "return_3d": f.return_3d,
         "atr_5": f.atr_5,
         "hl_range": f.hl_range,
-        "fo_eligible": f.fo_eligible
+        "fo_eligible": f.fo_eligible,
+        "rsi_14": f.rsi_14,
+        "close_ema50_gap_pct": f.close_ema50_gap_pct,
+        "open_gap_pct": f.open_gap_pct,
+        "macd_histogram": f.macd_histogram,
+        "atr_14_normalized": f.atr_14_normalized
     } for f in features])
 
     closes_df = pd.DataFrame([{
@@ -131,7 +123,6 @@ def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent
         timestamped_log("Empty DataFrames after loading. Exiting...")
         return
 
-    # Merge, sort, and create targets
     df = features_df.merge(closes_df, on=["trading_symbol", "exchange", "date"], how="left")
     df = df.sort_values(["trading_symbol", "date"]).reset_index(drop=True)
 
@@ -142,17 +133,12 @@ def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent
 
     df = df.dropna(subset=["strong_move_target", "direction_target"])
 
-    # Prepare feature set
     drop_cols = ["trading_symbol", "exchange", "date", "close", "next_close", "percent_move_next_day"]
     feature_cols = [col for col in df.columns if col not in drop_cols + ["strong_move_target", "direction_target"]]
-
-    # --- Train Strong Move Model ---
-    timestamped_log("Training Strong Move Model...")
 
     X = df[feature_cols]
     y = df["strong_move_target"]
 
-    # Time Series Split for Move Model
     tscv = TimeSeriesSplit(n_splits=5)
     train_index, test_index = list(tscv.split(X))[-1]
 
@@ -161,7 +147,7 @@ def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent
 
     num_positive = (y_train == 1).sum()
     num_negative = (y_train == 0).sum()
-    scale_pos_weight = (num_negative / max(num_positive, 1)) * 1.5
+    scale_pos_weight = (num_negative / max(num_positive, 1)) * 3.0
 
     classifiers_list = []
     for clf_name in classifier_names:
@@ -180,7 +166,6 @@ def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent
     y_pred = model.predict(X_test)
     timestamped_log("Strong Move Model Evaluation:\n" + classification_report(y_test, y_pred))
 
-    # Feature importance
     if hasattr(model, "feature_importances_"):
         importance_df = pd.DataFrame({
             "feature": X_train.columns,
@@ -190,14 +175,12 @@ def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent
     else:
         timestamped_log("Model does not support feature_importances_ attribute.")
 
-    # Save Strong Move Model
     move_model_filename = "move_" + "_".join(classifier_names) + ".pkl"
     move_model_save_path = os.path.join(os.path.dirname(get_daily_model_path("dummy")), move_model_filename)
     joblib.dump(model, move_model_save_path)
     timestamped_log(f"Strong Move Model saved to {move_model_save_path}")
 
-    # --- Train Direction Model ---
-    train_direction_model(df, feature_cols, classifier_names)
+    train_direction_model(df, feature_cols, classifier_names=[RANDOM_FOREST])
 
 if __name__ == "__main__":
-    train_daily_model(classifier_names=[RANDOM_FOREST, LIGHTGBM])
+    train_daily_model(classifier_names=[RANDOM_FOREST])

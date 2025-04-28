@@ -32,3 +32,10 @@ class FeatureData(Base):
 
     # Contextual
     fo_eligible = Column(Boolean, default=False)
+
+    # New Features
+    rsi_14 = Column(Float)
+    close_ema50_gap_pct = Column(Float)
+    open_gap_pct = Column(Float)
+    macd_histogram = Column(Float)
+    atr_14_normalized = Column(Float)

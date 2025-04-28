@@ -3,9 +3,19 @@
 import pandas as pd
 import numpy as np
 
+def calculate_rsi(series, period=14):
+    delta = series.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.rolling(window=period, min_periods=period).mean()
+    avg_loss = loss.rolling(window=period, min_periods=period).mean()
+    rs = avg_gain / (avg_loss + 1e-9)
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
 def calculate_features(eod_df: pd.DataFrame, symbol_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Takes raw EOD candle data and symbol master data, returns dataframe with 10 core features calculated.
+    Takes raw EOD candle data and symbol master data, returns dataframe with 15 core features calculated.
     """
     df = eod_df.copy()
     df = df.sort_values(["trading_symbol", "date"]).reset_index(drop=True)
@@ -26,7 +36,7 @@ def calculate_features(eod_df: pd.DataFrame, symbol_df: pd.DataFrame) -> pd.Data
 
     # Volume and volatility compression
     df["volume_spike_ratio"] = df["volume"] / df.groupby("trading_symbol")["volume"].transform(lambda x: x.rolling(3).mean())
-    
+
     rolling_mean = df.groupby("trading_symbol")["close"].transform(lambda x: x.rolling(20).mean())
     rolling_std = df.groupby("trading_symbol")["close"].transform(lambda x: x.rolling(20).std())
     upper_bb = rolling_mean + (2 * rolling_std)
@@ -40,11 +50,34 @@ def calculate_features(eod_df: pd.DataFrame, symbol_df: pd.DataFrame) -> pd.Data
     dm = np.where(up_move > down_move, up_move, 0)
     df["trend_zone_strength"] = pd.Series(dm).rolling(14).mean()
 
-    # Add FO Eligible (ignored in training but necessary for database integrity)
+    # --- New Features: (Cleanly integrated) ---
+
+    df["rsi_14"] = df.groupby("trading_symbol")["close"].transform(lambda x: calculate_rsi(x))
+    
+    df["ema_50"] = df.groupby("trading_symbol")["close"].transform(lambda x: x.ewm(span=50, adjust=False).mean())
+    df["close_ema50_gap_pct"] = (df["close"] - df["ema_50"]) / df["ema_50"] * 100
+
+    df["prev_close"] = df.groupby("trading_symbol")["close"].shift(1)
+    df["open_gap_pct"] = (df["open"] - df["prev_close"]) / df["prev_close"] * 100
+
+    ema_12 = df.groupby("trading_symbol")["close"].transform(lambda x: x.ewm(span=12, adjust=False).mean())
+    ema_26 = df.groupby("trading_symbol")["close"].transform(lambda x: x.ewm(span=26, adjust=False).mean())
+    df["macd_line"] = ema_12 - ema_26
+    df["macd_signal"] = df.groupby("trading_symbol")["macd_line"].transform(lambda x: x.ewm(span=9, adjust=False).mean())
+    df["macd_histogram"] = df["macd_line"] - df["macd_signal"]
+
+    df["tr1"] = df["high"] - df["low"]
+    df["tr2"] = (df["high"] - df["close"].shift()).abs()
+    df["tr3"] = (df["low"] - df["close"].shift()).abs()
+    df["true_range"] = df[["tr1", "tr2", "tr3"]].max(axis=1)
+    df["atr_14"] = df.groupby("trading_symbol")["true_range"].transform(lambda x: x.rolling(14).mean())
+    df["atr_14_normalized"] = df["atr_14"] / df["close"]
+
+    # Add FO Eligible (still needed)
     symbol_map = symbol_df.set_index("trading_symbol")["fo_eligible"].to_dict()
     df["fo_eligible"] = df["trading_symbol"].map(symbol_map).fillna(False)
 
-    # Final features to select
+    # Final feature selection
     features_cols = [
         "trading_symbol", "exchange", "date",
         "volatility_squeeze",
@@ -57,7 +90,13 @@ def calculate_features(eod_df: pd.DataFrame, symbol_df: pd.DataFrame) -> pd.Data
         "return_3d",
         "atr_5",
         "hl_range",
-        "fo_eligible"  # (optional, not used in training but kept for integrity)
+        "fo_eligible",
+        # New Features
+        "rsi_14",
+        "close_ema50_gap_pct",
+        "open_gap_pct",
+        "macd_histogram",
+        "atr_14_normalized"
     ]
 
     return df[features_cols]
