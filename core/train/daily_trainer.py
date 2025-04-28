@@ -9,10 +9,10 @@ from sqlalchemy.orm import Session
 from db.database import SessionLocal
 from db.models.feature_data import FeatureData
 from db.models.eod_data import EODData
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import classification_report
 from sklearn.ensemble import RandomForestClassifier, VotingClassifier
-from core.config import (RANDOM_FOREST, XGBOOST, LIGHTGBM, DEFAULT_DAILY_STRONG_MOVE_THRESHOLD, RANDOM_FOREST_N_ESTIMATORS, RANDOM_FOREST_MAX_DEPTH, RANDOM_SEED, get_daily_model_path)
+from core.config import (RANDOM_FOREST, XGBOOST, LIGHTGBM, DEFAULT_DAILY_STRONG_MOVE_THRESHOLD, RANDOM_FOREST_N_ESTIMATORS, RANDOM_FOREST_MAX_DEPTH, RANDOM_SEED, RANDOM_FOREST_MIN_SAMPLES, RANDOM_FOREST_CLASS_WEIGHT, LIGHTGBM_N_ESTIMATORS, LIGHTGBM_LEARNING_RATE, LIGHTGBM_MAX_DEPTH, LIGHTGBM_NUM_LEAVES, LIGHTGBM_MIN_CHILD_WEIGHT, get_daily_model_path)
 
 def timestamped_log(message: str):
     """Utility to print logs with timestamps."""
@@ -22,7 +22,7 @@ def timestamped_log(message: str):
 def get_classifier(classifier_name: str, scale_pos_weight: float = 1.0):
     """Create and return a single classifier instance."""
     if classifier_name == RANDOM_FOREST:
-        return RandomForestClassifier(n_estimators=RANDOM_FOREST_N_ESTIMATORS, max_depth=RANDOM_FOREST_MAX_DEPTH, random_state=RANDOM_SEED, class_weight="balanced")
+        return RandomForestClassifier(n_estimators=RANDOM_FOREST_N_ESTIMATORS, max_depth=RANDOM_FOREST_MAX_DEPTH, min_samples_split=RANDOM_FOREST_MIN_SAMPLES, random_state=RANDOM_SEED, class_weight=RANDOM_FOREST_CLASS_WEIGHT)
     elif classifier_name == XGBOOST:
         try:
             from xgboost import XGBClassifier
@@ -32,7 +32,7 @@ def get_classifier(classifier_name: str, scale_pos_weight: float = 1.0):
     elif classifier_name == LIGHTGBM:
         try:
             from lightgbm import LGBMClassifier
-            return LGBMClassifier(n_estimators=500, max_depth=6, learning_rate=0.05, min_child_weight=3, random_state=RANDOM_SEED)
+            return LGBMClassifier(n_estimators=LIGHTGBM_N_ESTIMATORS, max_depth=LIGHTGBM_MAX_DEPTH, learning_rate=LIGHTGBM_LEARNING_RATE, min_child_weight=LIGHTGBM_MIN_CHILD_WEIGHT, random_state=RANDOM_SEED, verbosity=-1)
         except ImportError:
             raise ImportError("Please install lightgbm: pip install lightgbm")
     else:
@@ -51,11 +51,16 @@ def train_direction_model(df: pd.DataFrame, feature_cols: List[str], classifier_
     X_dir = df_direction[feature_cols]
     y_dir = df_direction["direction_target"]
 
-    X_dir_train, X_dir_test, y_dir_train, y_dir_test = train_test_split(X_dir, y_dir, test_size=0.2, random_state=RANDOM_SEED, stratify=y_dir)
+    # Use TimeSeriesSplit for Direction Model
+    tscv = TimeSeriesSplit(n_splits=5)
+    train_index, test_index = list(tscv.split(X_dir))[-1]
+
+    X_dir_train, X_dir_test = X_dir.iloc[train_index], X_dir.iloc[test_index]
+    y_dir_train, y_dir_test = y_dir.iloc[train_index], y_dir.iloc[test_index]
 
     num_positive = (y_dir_train == 1).sum()
     num_negative = (y_dir_train == 0).sum()
-    scale_pos_weight = num_negative / max(num_positive, 1)
+    scale_pos_weight = (num_negative / max(num_positive, 1)) * 1.5
 
     classifiers_list = []
     for clf_name in classifier_names:
@@ -147,11 +152,16 @@ def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent
     X = df[feature_cols]
     y = df["strong_move_target"]
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED, stratify=y)
+    # Time Series Split for Move Model
+    tscv = TimeSeriesSplit(n_splits=5)
+    train_index, test_index = list(tscv.split(X))[-1]
+
+    X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+    y_train, y_test = y.iloc[train_index], y.iloc[test_index]
 
     num_positive = (y_train == 1).sum()
     num_negative = (y_train == 0).sum()
-    scale_pos_weight = num_negative / max(num_positive, 1)
+    scale_pos_weight = (num_negative / max(num_positive, 1)) * 1.5
 
     classifiers_list = []
     for clf_name in classifier_names:
@@ -190,4 +200,4 @@ def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent
     train_direction_model(df, feature_cols, classifier_names)
 
 if __name__ == "__main__":
-    train_daily_model(classifier_names=[RANDOM_FOREST])
+    train_daily_model(classifier_names=[RANDOM_FOREST, LIGHTGBM])
