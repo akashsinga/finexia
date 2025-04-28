@@ -1,3 +1,5 @@
+# core/train/daily_trainer.py
+
 import os
 import pandas as pd
 import joblib
@@ -10,7 +12,7 @@ from db.models.eod_data import EODData
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import classification_report
 from sklearn.ensemble import RandomForestClassifier, VotingClassifier
-from core.config import (RANDOM_FOREST, XGBOOST, LIGHTGBM, DEFAULT_DAILY_STRONG_MOVE_THRESHOLD, RANDOM_FOREST_N_ESTIMATORS, RANDOM_FOREST_MAX_DEPTH, RANDOM_SEED, RANDOM_FOREST_MIN_SAMPLES, RANDOM_FOREST_CLASS_WEIGHT, LIGHTGBM_N_ESTIMATORS, LIGHTGBM_LEARNING_RATE, LIGHTGBM_MAX_DEPTH, LIGHTGBM_NUM_LEAVES, LIGHTGBM_MIN_CHILD_WEIGHT, get_daily_model_path)
+from core.config import (RANDOM_FOREST, XGBOOST, LIGHTGBM, DEFAULT_DAILY_STRONG_MOVE_THRESHOLD, RANDOM_FOREST_N_ESTIMATORS, RANDOM_FOREST_MAX_DEPTH, RANDOM_SEED, RANDOM_FOREST_MIN_SAMPLES, RANDOM_FOREST_CLASS_WEIGHT, LIGHTGBM_N_ESTIMATORS, LIGHTGBM_LEARNING_RATE, LIGHTGBM_MAX_DEPTH, LIGHTGBM_MIN_CHILD_WEIGHT, get_daily_model_path)
 
 def timestamped_log(message: str):
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -126,14 +128,19 @@ def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent
     df = features_df.merge(closes_df, on=["trading_symbol", "exchange", "date"], how="left")
     df = df.sort_values(["trading_symbol", "date"]).reset_index(drop=True)
 
-    df["next_close"] = df.groupby("trading_symbol")["close"].shift(-1)
-    df["percent_move_next_day"] = ((df["next_close"] - df["close"]) / df["close"]) * 100
-    df["strong_move_target"] = (df["percent_move_next_day"].abs() > threshold_percent).astype(int)
-    df["direction_target"] = (df["percent_move_next_day"] > 0).astype(int)
+    # Calculate strong move in next 2-10 days
+    df["max_close_10d"] = df.groupby("trading_symbol")["close"].transform(lambda x: x.shift(-1).rolling(10, min_periods=1).max())
+    df["min_close_10d"] = df.groupby("trading_symbol")["close"].transform(lambda x: x.shift(-1).rolling(10, min_periods=1).min())
+
+    df["percent_up_move_10d"] = ((df["max_close_10d"] - df["close"]) / df["close"]) * 100
+    df["percent_down_move_10d"] = ((df["min_close_10d"] - df["close"]) / df["close"]) * 100
+
+    df["strong_move_target"] = ((df["percent_up_move_10d"] >= threshold_percent) | (df["percent_down_move_10d"].abs() >= threshold_percent)).astype(int)
+    df["direction_target"] = (df["percent_up_move_10d"] > df["percent_down_move_10d"].abs()).astype(int)
 
     df = df.dropna(subset=["strong_move_target", "direction_target"])
 
-    drop_cols = ["trading_symbol", "exchange", "date", "close", "next_close", "percent_move_next_day"]
+    drop_cols = ["trading_symbol", "exchange", "date", "close", "max_close_10d", "min_close_10d", "percent_up_move_10d", "percent_down_move_10d"]
     feature_cols = [col for col in df.columns if col not in drop_cols + ["strong_move_target", "direction_target"]]
 
     X = df[feature_cols]
