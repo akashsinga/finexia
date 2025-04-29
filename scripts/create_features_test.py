@@ -80,6 +80,7 @@ def create_features_for_one_symbol(target_symbol: str = "RELIANCE"):
             trading_symbol=row["trading_symbol"],
             exchange=row["exchange"],
             date=row["date"],
+            week_day = row["week_day"],
             volatility_squeeze=row["volatility_squeeze"],
             trend_zone_strength=row["trend_zone_strength"],
             range_compression_ratio=row["range_compression_ratio"],
@@ -110,4 +111,4 @@ def create_features_for_one_symbol(target_symbol: str = "RELIANCE"):
         session.close()
 
 if __name__ == "__main__":
-    create_features_for_one_symbol(target_symbol="TATAMOTORS")  # <-- You can change this easily
+    create_features_for_one_symbol(target_symbol="ADANIENT")  # <-- You can change this easily

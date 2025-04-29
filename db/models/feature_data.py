@@ -13,6 +13,7 @@ class FeatureData(Base):
     trading_symbol = Column(String, nullable=False, index=True)
     exchange = Column(String, nullable=False, index=True)
     date = Column(Date, nullable=False, index=True)
+    week_day = Column(Integer)
 
     # Price Action Features
     gap_pct = Column(Float)

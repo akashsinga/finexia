@@ -21,6 +21,7 @@ def calculate_features(eod_df: pd.DataFrame, symbol_df: pd.DataFrame) -> pd.Data
     df = df.sort_values(["trading_symbol", "date"]).reset_index(drop=True)
 
     # Basic calculations
+    df["week_day"] = pd.to_datetime(df["date"]).dt.weekday
     df["hl_range"] = (df["high"] - df["low"]) / df["close"]
     df["gap_pct"] = (df["open"] / df.groupby("trading_symbol")["close"].shift(1)) - 1
     df["body_to_range_ratio"] = (df["close"] - df["open"]).abs() / (df["high"] - df["low"]).replace(0, np.nan)
@@ -79,7 +80,7 @@ def calculate_features(eod_df: pd.DataFrame, symbol_df: pd.DataFrame) -> pd.Data
 
     # Final feature selection
     features_cols = [
-        "trading_symbol", "exchange", "date",
+        "trading_symbol", "exchange", "date", "week_day",
         "volatility_squeeze",
         "trend_zone_strength",
         "range_compression_ratio",

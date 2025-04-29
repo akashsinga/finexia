@@ -96,6 +96,7 @@ def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent
         "trading_symbol": f.trading_symbol,
         "exchange": f.exchange,
         "date": f.date,
+        "week_day": f.week_day,
         "volatility_squeeze": f.volatility_squeeze,
         "trend_zone_strength": f.trend_zone_strength,
         "range_compression_ratio": f.range_compression_ratio,
