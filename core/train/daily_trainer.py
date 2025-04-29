@@ -9,186 +9,118 @@ from sqlalchemy.orm import Session
 from db.database import SessionLocal
 from db.models.feature_data import FeatureData
 from db.models.eod_data import EODData
+from db.models.symbol import Symbol
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import classification_report
 from sklearn.ensemble import RandomForestClassifier, VotingClassifier
-from core.config import (RANDOM_FOREST, XGBOOST, LIGHTGBM, DEFAULT_DAILY_STRONG_MOVE_THRESHOLD, RANDOM_FOREST_N_ESTIMATORS, RANDOM_FOREST_MAX_DEPTH, RANDOM_SEED, RANDOM_FOREST_MIN_SAMPLES, RANDOM_FOREST_CLASS_WEIGHT, LIGHTGBM_N_ESTIMATORS, LIGHTGBM_LEARNING_RATE, LIGHTGBM_MAX_DEPTH, LIGHTGBM_MIN_CHILD_WEIGHT, get_daily_model_path)
+from core.config import (RANDOM_FOREST, XGBOOST, LIGHTGBM, DAILY_MODELS_DIR, DEFAULT_DAILY_STRONG_MOVE_THRESHOLD, RANDOM_FOREST_N_ESTIMATORS, RANDOM_FOREST_MAX_DEPTH, RANDOM_SEED, RANDOM_FOREST_MIN_SAMPLES, RANDOM_FOREST_CLASS_WEIGHT, LIGHTGBM_N_ESTIMATORS, LIGHTGBM_LEARNING_RATE, LIGHTGBM_MAX_DEPTH, LIGHTGBM_MIN_CHILD_WEIGHT)
 
-def timestamped_log(message: str):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    print(f"[{now}] {message}")
+def timestamped_log(message: str): print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] {message}")
 
 def get_classifier(classifier_name: str, scale_pos_weight: float = 1.0):
     if classifier_name == RANDOM_FOREST:
         return RandomForestClassifier(n_estimators=RANDOM_FOREST_N_ESTIMATORS, max_depth=RANDOM_FOREST_MAX_DEPTH, min_samples_split=RANDOM_FOREST_MIN_SAMPLES, random_state=RANDOM_SEED, class_weight=RANDOM_FOREST_CLASS_WEIGHT)
     elif classifier_name == XGBOOST:
-        try:
-            from xgboost import XGBClassifier
-            return XGBClassifier(n_estimators=300, max_depth=6, learning_rate=0.05, min_child_weight=3, random_state=RANDOM_SEED, verbosity=0, scale_pos_weight=scale_pos_weight)
-        except ImportError:
-            raise ImportError("Please install xgboost: pip install xgboost")
+        from xgboost import XGBClassifier
+        return XGBClassifier(n_estimators=300, max_depth=6, learning_rate=0.05, min_child_weight=3, random_state=RANDOM_SEED, verbosity=0, scale_pos_weight=scale_pos_weight)
     elif classifier_name == LIGHTGBM:
-        try:
-            from lightgbm import LGBMClassifier
-            return LGBMClassifier(n_estimators=LIGHTGBM_N_ESTIMATORS, max_depth=LIGHTGBM_MAX_DEPTH, learning_rate=LIGHTGBM_LEARNING_RATE, min_child_weight=LIGHTGBM_MIN_CHILD_WEIGHT, random_state=RANDOM_SEED, verbosity=-1)
-        except ImportError:
-            raise ImportError("Please install lightgbm: pip install lightgbm")
+        from lightgbm import LGBMClassifier
+        return LGBMClassifier(n_estimators=LIGHTGBM_N_ESTIMATORS, max_depth=LIGHTGBM_MAX_DEPTH, learning_rate=LIGHTGBM_LEARNING_RATE, min_child_weight=LIGHTGBM_MIN_CHILD_WEIGHT, random_state=RANDOM_SEED, verbosity=-1)
     else:
         raise ValueError(f"Unsupported classifier: {classifier_name}")
 
-def train_direction_model(df: pd.DataFrame, feature_cols: List[str], classifier_names: List[str]):
-    timestamped_log("Starting Direction Model training...")
+def get_model_path(symbol: str, model_type: str): return os.path.join(DAILY_MODELS_DIR, f"{symbol}_{model_type}.pkl")
 
-    df_direction = df[df["strong_move_target"] == 1].copy()
-
-    if len(df_direction) < 50:
-        timestamped_log("Not enough strong movers to train Direction Model. Skipping.")
-        return
-
-    X_dir = df_direction[feature_cols]
-    y_dir = df_direction["direction_target"]
-
-    tscv = TimeSeriesSplit(n_splits=5)
-    train_index, test_index = list(tscv.split(X_dir))[-1]
-
-    X_dir_train, X_dir_test = X_dir.iloc[train_index], X_dir.iloc[test_index]
-    y_dir_train, y_dir_test = y_dir.iloc[train_index], y_dir.iloc[test_index]
-
-    num_positive = (y_dir_train == 1).sum()
-    num_negative = (y_dir_train == 0).sum()
-    scale_pos_weight = (num_negative / max(num_positive, 1)) * 1.5
-
-    classifiers_list = []
-    for clf_name in classifier_names:
-        clf = get_classifier(clf_name, scale_pos_weight=scale_pos_weight)
-        classifiers_list.append((clf_name, clf))
-
-    if len(classifiers_list) == 1:
-        direction_model = classifiers_list[0][1]
-        timestamped_log(f"Using {classifier_names[0].upper()} Classifier for Direction...")
-    else:
-        direction_model = VotingClassifier(estimators=classifiers_list, voting="soft")
-        timestamped_log(f"Using VotingClassifier ({'_'.join(classifier_names).upper()}) for Direction...")
-
-    direction_model.fit(X_dir_train, y_dir_train)
-
-    y_dir_pred = direction_model.predict(X_dir_test)
-    timestamped_log("Direction Model Evaluation:\n" + classification_report(y_dir_test, y_dir_pred))
-
-    direction_model_filename = "direction_" + "_".join(classifier_names) + ".pkl"
-    direction_model_save_path = os.path.join(os.path.dirname(get_daily_model_path("dummy")), direction_model_filename)
-    joblib.dump(direction_model, direction_model_save_path)
-    timestamped_log(f"Direction Model saved to {direction_model_save_path}")
-
-def train_daily_model(classifier_names: List[str] = [XGBOOST], threshold_percent=DEFAULT_DAILY_STRONG_MOVE_THRESHOLD):
+def train_models_for_one_symbol(symbol: str, move_classifiers: List[str], direction_classifiers: List[str], threshold_percent: float = DEFAULT_DAILY_STRONG_MOVE_THRESHOLD):
     session: Session = SessionLocal()
+    try:
+        timestamped_log(f"⏳ Loading data for {symbol}...")
+        features = session.query(FeatureData).filter(FeatureData.trading_symbol == symbol).all()
+        closes = session.query(EODData.trading_symbol, EODData.exchange, EODData.date, EODData.close).filter(EODData.trading_symbol == symbol).all()
 
-    timestamped_log("Loading feature and close price data...")
-    features = session.query(FeatureData).all()
-    closes = session.query(EODData.trading_symbol, EODData.exchange, EODData.date, EODData.close).all()
-    session.close()
+        if not features or not closes:
+            timestamped_log(f"⚠️ No data found for {symbol}. Skipping.")
+            return
 
-    if not features or not closes:
-        timestamped_log("No feature or close data found! Exiting...")
-        return
+        features_df = pd.DataFrame([{col.name: getattr(f, col.name) for col in FeatureData.__table__.columns if col.name != 'id'} for f in features]).copy()
+        closes_df = pd.DataFrame([{
+            "trading_symbol": c.trading_symbol,
+            "exchange": c.exchange,
+            "date": c.date,
+            "close": c.close
+        } for c in closes]).copy()
 
-    features_df = pd.DataFrame([{
-        "trading_symbol": f.trading_symbol,
-        "exchange": f.exchange,
-        "date": f.date,
-        "week_day": f.week_day,
-        "volatility_squeeze": f.volatility_squeeze,
-        "trend_zone_strength": f.trend_zone_strength,
-        "range_compression_ratio": f.range_compression_ratio,
-        "volume_spike_ratio": f.volume_spike_ratio,
-        "body_to_range_ratio": f.body_to_range_ratio,
-        "distance_from_ema_5": f.distance_from_ema_5,
-        "gap_pct": f.gap_pct,
-        "return_3d": f.return_3d,
-        "atr_5": f.atr_5,
-        "hl_range": f.hl_range,
-        "fo_eligible": f.fo_eligible,
-        "rsi_14": f.rsi_14,
-        "close_ema50_gap_pct": f.close_ema50_gap_pct,
-        "open_gap_pct": f.open_gap_pct,
-        "macd_histogram": f.macd_histogram,
-        "atr_14_normalized": f.atr_14_normalized
-    } for f in features])
+        df = features_df.merge(closes_df, on=["trading_symbol", "exchange", "date"], how="left")
+        df = df.sort_values("date").reset_index(drop=True)
 
-    closes_df = pd.DataFrame([{
-        "trading_symbol": c.trading_symbol,
-        "exchange": c.exchange,
-        "date": c.date,
-        "close": c.close
-    } for c in closes])
+        df["max_close_10d"] = df["close"].shift(-1).rolling(10, min_periods=1).max()
+        df["min_close_10d"] = df["close"].shift(-1).rolling(10, min_periods=1).min()
+        df["percent_up_move_10d"] = ((df["max_close_10d"] - df["close"]) / df["close"]) * 100
+        df["percent_down_move_10d"] = ((df["min_close_10d"] - df["close"]) / df["close"]) * 100
+        df["strong_move_target"] = ((df["percent_up_move_10d"] >= threshold_percent) | (df["percent_down_move_10d"].abs() >= threshold_percent)).astype(int)
+        df["direction_target"] = (df["percent_up_move_10d"] > df["percent_down_move_10d"].abs()).astype(int)
+        df = df.dropna(subset=["strong_move_target", "direction_target"])
 
-    if features_df.empty or closes_df.empty:
-        timestamped_log("Empty DataFrames after loading. Exiting...")
-        return
+        if df["strong_move_target"].sum() < 10:
+            timestamped_log(f"⚠️ Not enough strong movers for {symbol}. Skipping.")
+            return
 
-    df = features_df.merge(closes_df, on=["trading_symbol", "exchange", "date"], how="left")
-    df = df.sort_values(["trading_symbol", "date"]).reset_index(drop=True)
+        drop_cols = ["trading_symbol", "exchange", "date", "close", "max_close_10d", "min_close_10d", "percent_up_move_10d", "percent_down_move_10d"]
+        feature_cols = [col for col in df.columns if col not in drop_cols + ["strong_move_target", "direction_target"]]
 
-    # Calculate strong move in next 2-10 days
-    df["max_close_10d"] = df.groupby("trading_symbol")["close"].transform(lambda x: x.shift(-1).rolling(10, min_periods=1).max())
-    df["min_close_10d"] = df.groupby("trading_symbol")["close"].transform(lambda x: x.shift(-1).rolling(10, min_periods=1).min())
+        # Train Move Model
+        X, y = df[feature_cols], df["strong_move_target"]
+        tscv = TimeSeriesSplit(n_splits=5)
+        train_idx, test_idx = list(tscv.split(X))[-1]
+        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+        y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+        scale_weight = (y_train == 0).sum() / max((y_train == 1).sum(), 1) * 3.0
 
-    df["percent_up_move_10d"] = ((df["max_close_10d"] - df["close"]) / df["close"]) * 100
-    df["percent_down_move_10d"] = ((df["min_close_10d"] - df["close"]) / df["close"]) * 100
+        move_estimators = [(clf_name, get_classifier(clf_name, scale_pos_weight=scale_weight)) for clf_name in move_classifiers]
+        move_model = move_estimators[0][1] if len(move_estimators) == 1 else VotingClassifier(estimators=move_estimators, voting="soft")
+        move_model.fit(X_train, y_train)
+        timestamped_log(f"✅ Trained Move Model for {symbol}\n" + classification_report(y_test, move_model.predict(X_test)))
+        joblib.dump(move_model, get_model_path(symbol, "move"))
 
-    df["strong_move_target"] = ((df["percent_up_move_10d"] >= threshold_percent) | (df["percent_down_move_10d"].abs() >= threshold_percent)).astype(int)
-    df["direction_target"] = (df["percent_up_move_10d"] > df["percent_down_move_10d"].abs()).astype(int)
+        # Train Direction Model
+        df_dir = df[df["strong_move_target"] == 1]
+        if len(df_dir) < 10:
+            timestamped_log(f"⚠️ Not enough direction data for {symbol}. Skipping direction model.")
+            return
 
-    df = df.dropna(subset=["strong_move_target", "direction_target"])
+        X_dir, y_dir = df_dir[feature_cols], df_dir["direction_target"]
+        train_idx, test_idx = list(tscv.split(X_dir))[-1]
+        Xd_train, Xd_test = X_dir.iloc[train_idx], X_dir.iloc[test_idx]
+        yd_train, yd_test = y_dir.iloc[train_idx], y_dir.iloc[test_idx]
+        scale_dir = (yd_train == 0).sum() / max((yd_train == 1).sum(), 1) * 1.5
 
-    drop_cols = ["trading_symbol", "exchange", "date", "close", "max_close_10d", "min_close_10d", "percent_up_move_10d", "percent_down_move_10d"]
-    feature_cols = [col for col in df.columns if col not in drop_cols + ["strong_move_target", "direction_target"]]
+        direction_estimators = [(clf_name, get_classifier(clf_name, scale_pos_weight=scale_dir)) for clf_name in direction_classifiers]
+        direction_model = direction_estimators[0][1] if len(direction_estimators) == 1 else VotingClassifier(estimators=direction_estimators, voting="soft")
+        direction_model.fit(Xd_train, yd_train)
+        timestamped_log(f"✅ Trained Direction Model for {symbol}\n" + classification_report(yd_test, direction_model.predict(Xd_test)))
+        joblib.dump(direction_model, get_model_path(symbol, "direction"))
 
-    X = df[feature_cols]
-    y = df["strong_move_target"]
+    except Exception as e:
+        timestamped_log(f"[ERROR] Exception during training for {symbol}: {e}")
+    finally:
+        session.close()
 
-    tscv = TimeSeriesSplit(n_splits=5)
-    train_index, test_index = list(tscv.split(X))[-1]
+def train_daily_model(move_classifiers: List[str] = [RANDOM_FOREST], direction_classifiers: List[str] = [RANDOM_FOREST], threshold_percent: float = DEFAULT_DAILY_STRONG_MOVE_THRESHOLD):
+    session: Session = SessionLocal()
+    try:
+        symbols = session.query(Symbol.trading_symbol).filter(Symbol.active == True).all()
+        if not symbols:
+            timestamped_log("No active symbols found. Exiting...")
+            return
 
-    X_train, X_test = X.iloc[train_index], X.iloc[test_index]
-    y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+        timestamped_log(f"Found {len(symbols)} active symbols. Starting training...")
+        for s in symbols:
+            train_models_for_one_symbol(symbol=s.trading_symbol, move_classifiers=move_classifiers, direction_classifiers=direction_classifiers, threshold_percent=threshold_percent)
 
-    num_positive = (y_train == 1).sum()
-    num_negative = (y_train == 0).sum()
-    scale_pos_weight = (num_negative / max(num_positive, 1)) * 3.0
-
-    classifiers_list = []
-    for clf_name in classifier_names:
-        clf = get_classifier(clf_name, scale_pos_weight=scale_pos_weight)
-        classifiers_list.append((clf_name, clf))
-
-    if len(classifiers_list) == 1:
-        model = classifiers_list[0][1]
-        timestamped_log(f"Using {classifier_names[0].upper()} Classifier...")
-    else:
-        model = VotingClassifier(estimators=classifiers_list, voting="soft")
-        timestamped_log(f"Using VotingClassifier ({'_'.join(classifier_names).upper()})...")
-
-    model.fit(X_train, y_train)
-
-    y_pred = model.predict(X_test)
-    timestamped_log("Strong Move Model Evaluation:\n" + classification_report(y_test, y_pred))
-
-    if hasattr(model, "feature_importances_"):
-        importance_df = pd.DataFrame({
-            "feature": X_train.columns,
-            "importance": model.feature_importances_
-        }).sort_values(by="importance", ascending=False)
-        timestamped_log("Feature Importances:\n" + importance_df.to_string(index=False))
-    else:
-        timestamped_log("Model does not support feature_importances_ attribute.")
-
-    move_model_filename = "move_" + "_".join(classifier_names) + ".pkl"
-    move_model_save_path = os.path.join(os.path.dirname(get_daily_model_path("dummy")), move_model_filename)
-    joblib.dump(model, move_model_save_path)
-    timestamped_log(f"Strong Move Model saved to {move_model_save_path}")
-
-    train_direction_model(df, feature_cols, classifier_names=[RANDOM_FOREST])
+    except Exception as e:
+        timestamped_log(f"[ERROR] Exception during daily model training: {e}")
+    finally:
+        session.close()
 
 if __name__ == "__main__":
-    train_daily_model(classifier_names=[RANDOM_FOREST])
+    train_daily_model(move_classifiers=[RANDOM_FOREST], direction_classifiers=[RANDOM_FOREST])
