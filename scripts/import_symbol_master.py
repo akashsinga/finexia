@@ -2,6 +2,7 @@
 
 import pandas as pd
 import requests
+from io import StringIO
 from sqlalchemy.orm import Session
 from db.database import SessionLocal, engine
 from db.models.symbol import Symbol
@@ -10,84 +11,74 @@ from db.base_class import Base
 # Constants
 DHAN_SCRIP_MASTER_URL = "https://images.dhan.co/api-data/api-scrip-master.csv"
 
-# Step 1: Download and save the master CSV
-def download_scrip_master():
+def download_and_parse_csv() -> pd.DataFrame:
     response = requests.get(DHAN_SCRIP_MASTER_URL)
-    if response.status_code == 200:
-        with open("api_scrip_master.csv", "wb") as f:
-            f.write(response.content)
-        print("[INFO] Scrip master downloaded successfully.")
-    else:
-        print("[ERROR] Failed to download scrip master.")
-        exit(1)
+    if response.status_code != 200:
+        raise Exception("Failed to download scrip master file.")
+    
+    print("[INFO] CSV downloaded successfully.")
+    return pd.read_csv(StringIO(response.text), low_memory=False)
 
-# Step 2: Load, map, and insert symbols
 def import_symbols():
-    # Create tables if not already created
     Base.metadata.create_all(bind=engine)
-
-    # Load full CSV
-    df_full = pd.read_csv("api_scrip_master.csv")
-
-    # Build Derivatives symbol list (from full CSV — no NSE filtering here)
-    fo_symbols_list = df_full[(df_full['SEM_SEGMENT'] == 'D') &(df_full['SEM_EXCH_INSTRUMENT_TYPE'].isin(['FUTSTK', 'OPTSTK']))]['SEM_TRADING_SYMBOL'].tolist()
-
-    # Now Filter only NSE Equity Stocks
-    df = df_full[(df_full['SEM_SEGMENT'] == 'E') &(df_full['SEM_EXCH_INSTRUMENT_TYPE'] == 'ES') &(df_full['SEM_EXM_EXCH_ID'] == 'NSE')]
-
-    print(f"[INFO] Total NSE Equity symbols found: {len(df)}")
-    print(f"[INFO] Total Derivatives symbols found: {len(fo_symbols_list)}")
-
-    mapped_records = []
-
-    for _, row in df.iterrows():
-        security_id = str(row.get('SEM_SMST_SECURITY_ID', ''))
-        exchange = row.get('SEM_EXM_EXCH_ID', '')
-        trading_symbol = row.get('SEM_TRADING_SYMBOL', '')
-        name = row.get('SM_SYMBOL_NAME', '')
-        instrument_type = "EQUITY"
-        segment = f"{exchange}_EQ"
-
-        # Convert lot_size safely to int
-        try:
-            lot_size_raw = row.get('SEM_LOT_UNITS', None)
-            lot_size = int(lot_size_raw) if pd.notnull(lot_size_raw) else None
-        except ValueError:
-            lot_size = None
-
-        active = True
-
-        # Check F&O eligibility correctly now
-        fo_eligible = any(derivative.startswith(trading_symbol + '-') for derivative in fo_symbols_list)
-
-        # Create Symbol ORM object
-        symbol_obj = Symbol(
-            security_id=security_id,
-            exchange=exchange,
-            trading_symbol=trading_symbol,
-            name=name,
-            instrument_type=instrument_type,
-            segment=segment,
-            lot_size=lot_size,
-            active=active,
-            fo_eligible=fo_eligible
-        )
-
-        mapped_records.append(symbol_obj)
-
-    # Insert into DB
     session: Session = SessionLocal()
+
     try:
-        session.bulk_save_objects(mapped_records)
+        df_full = download_and_parse_csv()
+
+        # Derivatives list for F&O eligibility
+        fo_symbols = df_full[(df_full['SEM_SEGMENT'] == 'D') &(df_full['SEM_EXCH_INSTRUMENT_TYPE'].isin(['FUTSTK', 'OPTSTK']))]['SEM_TRADING_SYMBOL'].tolist()
+
+        # Filter NSE EQ stocks
+        df = df_full[(df_full['SEM_SEGMENT'] == 'E') &(df_full['SEM_EXCH_INSTRUMENT_TYPE'] == 'ES') &(df_full['SEM_EXM_EXCH_ID'] == 'NSE')]
+
+        print(f"[INFO] {len(df)} NSE EQ symbols found. Starting import...")
+
+        added, updated = 0, 0
+
+        for _, row in df.iterrows():
+            trading_symbol = row['SEM_TRADING_SYMBOL']
+            security_id = str(row.get('SEM_SMST_SECURITY_ID', '')).strip()
+            exchange = row.get('SEM_EXM_EXCH_ID', '')
+            name = row.get('SM_SYMBOL_NAME', '')
+            instrument_type = "EQUITY"
+            segment = f"{exchange}_EQ"
+            lot_size = int(row['SEM_LOT_UNITS']) if pd.notnull(row['SEM_LOT_UNITS']) else None
+            fo_eligible = any(derivative.startswith(trading_symbol + '-') for derivative in fo_symbols)
+
+            # Check existing
+            existing = session.query(Symbol).filter(Symbol.trading_symbol == trading_symbol, Symbol.exchange == exchange).first()
+            if existing:
+                existing.security_id = security_id
+                existing.name = name
+                existing.segment = segment
+                existing.lot_size = lot_size
+                existing.active = True
+                existing.fo_eligible = fo_eligible
+                updated += 1
+            else:
+                symbol_obj = Symbol(
+                    security_id=security_id,
+                    exchange=exchange,
+                    trading_symbol=trading_symbol,
+                    name=name,
+                    instrument_type=instrument_type,
+                    segment=segment,
+                    lot_size=lot_size,
+                    active=True,
+                    fo_eligible=fo_eligible,
+                )
+                session.add(symbol_obj)
+                added += 1
+
         session.commit()
-        print(f"[INFO] Inserted {len(mapped_records)} NSE symbols into the database.")
+        print(f"[SUCCESS] Imported symbols - Added: {added}, Updated: {updated}")
+
     except Exception as e:
         session.rollback()
-        print(f"[ERROR] Failed to insert symbols: {e}")
+        print(f"[ERROR] Symbol import failed: {e}")
     finally:
         session.close()
 
-# Step 3: Run
 if __name__ == "__main__":
-    download_scrip_master()
     import_symbols()
