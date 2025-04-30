@@ -1,16 +1,15 @@
 # db/models/symbol.py
 
-from sqlalchemy import Column, String, Integer, Boolean, UniqueConstraint
+from sqlalchemy import Column, String, Integer, Boolean, UniqueConstraint, DateTime
+from sqlalchemy.sql import func
 from db.base_class import Base
 
 class Symbol(Base):
     __tablename__ = "symbols"
-    __table_args__ = (
-        UniqueConstraint('trading_symbol', 'exchange', name='unique_trading_symbol_exchange'),
-    )
+    __table_args__ = (UniqueConstraint('trading_symbol', 'exchange', name='unique_trading_symbol_exchange'),)
 
     id = Column(Integer, primary_key=True, index=True)
-    security_id = Column(String, nullable=False)  # <-- NEW FIELD
+    security_id = Column(String, nullable=False)
     exchange = Column(String, nullable=False)
     trading_symbol = Column(String, nullable=False)
     name = Column(String, nullable=False)
@@ -19,3 +18,7 @@ class Symbol(Base):
     lot_size = Column(Integer, nullable=True)
     active = Column(Boolean, default=True)
     fo_eligible = Column(Boolean, default=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+

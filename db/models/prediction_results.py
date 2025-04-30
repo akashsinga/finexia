@@ -1,14 +1,12 @@
 # db/models/prediction_result.py
 
 from sqlalchemy import Column, Integer, String, Float, Date, DateTime, UniqueConstraint
+from sqlalchemy.sql import func
 from db.base_class import Base
-from datetime import datetime
 
 class PredictionResult(Base):
     __tablename__ = "prediction_results"
-    __table_args__ = (
-        UniqueConstraint('trading_symbol', 'date', name='unique_prediction_per_day'),
-    )
+    __table_args__ = (UniqueConstraint('trading_symbol', 'date', name='unique_prediction_per_day'),)
 
     id = Column(Integer, primary_key=True, index=True)
     trading_symbol = Column(String, nullable=False, index=True)
@@ -16,4 +14,8 @@ class PredictionResult(Base):
     strong_move_confidence = Column(Float, nullable=False)
     direction_prediction = Column(String, nullable=True)  # "UP" or "DOWN"
     direction_confidence = Column(Float, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Optional for traceability
+    model_config_hash = Column(String, nullable=True)
