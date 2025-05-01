@@ -58,7 +58,8 @@ def generate_and_insert_features(symbol: str, eod_df: pd.DataFrame, symbol_meta_
                 close_ema50_gap_pct=row["close_ema50_gap_pct"],
                 open_gap_pct=row["open_gap_pct"],
                 macd_histogram=row["macd_histogram"],
-                atr_14_normalized=row["atr_14_normalized"]
+                atr_14_normalized=row["atr_14_normalized"],
+                percent_move=row["percent_move"] 
             )
             for _, row in features_df.iterrows()
         ]

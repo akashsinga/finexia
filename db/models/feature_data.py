@@ -31,6 +31,7 @@ class FeatureData(Base):
     open_gap_pct = Column(Float)
     macd_histogram = Column(Float)
     atr_14_normalized = Column(Float)
+    percent_move = Column(Float)
 
     # New additions
     created_at = Column(DateTime(timezone=True), server_default=func.now())

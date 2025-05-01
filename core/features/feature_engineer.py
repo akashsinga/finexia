@@ -19,6 +19,7 @@ def calculate_features(eod_df: pd.DataFrame, symbol_df: pd.DataFrame) -> pd.Data
     df["hl_range"] = (df["high"] - df["low"]) / df["close"]
     df["gap_pct"] = (df["open"] / df.groupby("trading_symbol")["close"].shift(1)) - 1
     df["body_to_range_ratio"] = (df["close"] - df["open"]).abs() / (df["high"] - df["low"]).replace(0, np.nan)
+    df["percent_move"] = ((df["close"] - df["open"]) / df["open"].replace(0, np.nan)) * 100
     df["distance_from_ema_5"] = df["close"] - df.groupby("trading_symbol")["close"].transform(lambda x: x.ewm(span=5, adjust=False).mean())
     df["return_3d"] = df.groupby("trading_symbol")["close"].pct_change(3)
     df["range_compression_ratio"] = df["hl_range"] / df.groupby("trading_symbol")["hl_range"].transform(lambda x: x.rolling(3).mean())
@@ -60,5 +61,5 @@ def calculate_features(eod_df: pd.DataFrame, symbol_df: pd.DataFrame) -> pd.Data
         "volume_spike_ratio", "body_to_range_ratio", "distance_from_ema_5",
         "gap_pct", "return_3d", "atr_5", "hl_range", "fo_eligible",
         "rsi_14", "close_ema50_gap_pct", "open_gap_pct",
-        "macd_histogram", "atr_14_normalized"
+        "macd_histogram", "atr_14_normalized","percent_move"
     ]]
