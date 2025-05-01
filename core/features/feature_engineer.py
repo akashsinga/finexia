@@ -72,7 +72,11 @@ def fast_ewm(series, span, adjust=False):
             window = values[max(first_valid, i-len(weights)+1):i+1]
             if len(window) > 0:
                 w = weights[-len(window):]
-                result[i] = np.sum(window * w) / np.sum(w)
+                # Fix for division by zero
+                if np.sum(w) > 0:
+                    result[i] = np.sum(window * w) / np.sum(w)
+                else:
+                    result[i] = np.nan
     
     return pd.Series(result, index=series.index)
 
@@ -145,9 +149,14 @@ def calculate_features(eod_df: pd.DataFrame, symbol_df: pd.DataFrame) -> pd.Data
         df.loc[idx, "ema_50"] = ema_50
         df.loc[idx, "close_ema50_gap_pct"] = (group["close"] - ema_50) / ema_50 * 100
         
-        # Previous close and open gap
-        df.loc[idx, "prev_close"] = group["close"].shift(1)
-        df.loc[idx, "open_gap_pct"] = (group["open"] - group["prev_close"]) / group["prev_close"] * 100
+        # Previous close and open gap - Fixed to handle missing values
+        prev_close = group["close"].shift(1)
+        df.loc[idx, "prev_close"] = prev_close
+        
+        # Calculate open_gap_pct safely
+        mask = prev_close.notna() & (prev_close != 0)
+        df.loc[idx, "open_gap_pct"] = 0  # Default value
+        df.loc[idx[mask], "open_gap_pct"] = ((group["open"] - prev_close) / prev_close * 100)[mask]
         
         # MACD calculation
         ema_12 = fast_ewm(group["close"], span=12, adjust=False)

@@ -8,6 +8,9 @@ env/
 venv/
 .venv/
 
+# Cache directory
+cache/
+
 # IDEs
 .vscode/
 .idea/
