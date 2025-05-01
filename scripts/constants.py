@@ -34,5 +34,5 @@ DATA_API_MAX_PER_SECOND = 5
 DATA_API_MAX_PER_DAY = 100_000
 
 # Safe throttling constants
-SAFE_REQUESTS_PER_SECOND = 1   # Keep some margin
+SAFE_REQUESTS_PER_SECOND = 2   # Keep some margin
 SAFE_SLEEP_BETWEEN_REQUESTS = 1 / SAFE_REQUESTS_PER_SECOND # 1 seconds sleep
