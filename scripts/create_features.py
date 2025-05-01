@@ -1,100 +1,44 @@
 # scripts/create_features.py
 
+import time
 import pandas as pd
-from sqlalchemy.orm import Session
-from sqlalchemy import text
 from datetime import datetime
-from db.database import SessionLocal, engine
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
+from db.base_class import Base
+from db.database import DATABASE_URL
 from db.models.eod_data import EODData
 from db.models.symbol import Symbol
 from db.models.feature_data import FeatureData
-from db.base_class import Base
 from core.features.feature_engineer import calculate_features
 
-def split_list(lst, batch_size):
-    """Split a list into smaller batches."""
-    for i in range(0, len(lst), batch_size):
-        yield lst[i:i + batch_size]
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-def create_features():
-    """Incrementally create features for (symbol, date) pairs missing in features_data."""
+def log(msg): print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}")
 
-    # Ensure tables exist
-    Base.metadata.create_all(bind=engine)
-
-    session: Session = SessionLocal()
-
+def generate_and_insert_features(symbol: str, eod_df: pd.DataFrame, symbol_meta_df: pd.DataFrame, feature_pairs: set):
+    session = SessionLocal()
     try:
-        # Load EOD data
-        print("[INFO] Loading EOD candles...")
-        eod_records = session.query(EODData).all()
-        if not eod_records:
-            print("[ERROR] No EOD data found. Exiting.")
-            return
+        symbol_eod = eod_df[eod_df["trading_symbol"] == symbol]
+        missing_dates = [d for d in symbol_eod["date"].unique() if (symbol, d) not in feature_pairs]
+        symbol_eod = symbol_eod[symbol_eod["date"].isin(missing_dates)]
 
-        # Load active symbols
-        print("[INFO] Loading active Symbols...")
-        symbol_records = session.query(Symbol).filter(Symbol.active == True).all()
-        if not symbol_records:
-            print("[ERROR] No active Symbols found. Exiting.")
-            return
+        if symbol_eod.empty:
+            return f"[SKIP] {symbol} - no missing dates"
 
-        # Convert to DataFrames
-        eod_df = pd.DataFrame([{
-            "trading_symbol": r.trading_symbol,
-            "exchange": r.exchange,
-            "date": r.date,
-            "open": r.open,
-            "high": r.high,
-            "low": r.low,
-            "close": r.close,
-            "volume": r.volume
-        } for r in eod_records])
+        symbol_meta = symbol_meta_df[symbol_meta_df["trading_symbol"] == symbol]
+        if symbol_meta.empty:
+            return f"[ERROR] {symbol} - symbol metadata missing"
 
-        symbol_df = pd.DataFrame([{
-            "trading_symbol": s.trading_symbol,
-            "fo_eligible": s.fo_eligible
-        } for s in symbol_records])
-
-        if eod_df.empty or symbol_df.empty:
-            print("[ERROR] Empty EOD or Symbol dataframe. Exiting.")
-            return
-
-        # Load existing features
-        print("[INFO] Checking existing features...")
-        feature_pairs = set(
-            (row.trading_symbol, row.date) for row in session.query(FeatureData.trading_symbol, FeatureData.date)
-        )
-        eod_pairs = set(
-            (row.trading_symbol, row.date) for row in eod_records
-        )
-
-        missing_pairs = eod_pairs - feature_pairs
-
-        if not missing_pairs:
-            print("[INFO] No missing (symbol, date) pairs found. Features already up-to-date.")
-            return
-
-        print(f"[INFO] Found {len(missing_pairs)} missing (symbol, date) records.")
-
-        # Filter EOD data for missing records
-        eod_df["pair"] = list(zip(eod_df["trading_symbol"], eod_df["date"]))
-        eod_df = eod_df[eod_df["pair"].isin(missing_pairs)].drop(columns=["pair"])
-
-        # Calculate features
-        print("[INFO] Calculating features for missing records...")
-        features_df = calculate_features(eod_df, symbol_df)
+        features_df = calculate_features(symbol_eod, symbol_meta)
 
         if features_df.empty:
-            print("[ERROR] No features generated after filtering. Exiting.")
-            return
+            return f"[SKIP] {symbol} - no features generated"
 
-        print(f"[INFO] Calculated {len(features_df)} feature rows ready for insertion.")
-
-        # Prepare feature objects
-        feature_objects = []
-        for _, row in features_df.iterrows():
-            feature = FeatureData(
+        feature_objects = [
+            FeatureData(
                 trading_symbol=row["trading_symbol"],
                 exchange=row["exchange"],
                 date=row["date"],
@@ -116,29 +60,63 @@ def create_features():
                 macd_histogram=row["macd_histogram"],
                 atr_14_normalized=row["atr_14_normalized"]
             )
-            feature_objects.append(feature)
+            for _, row in features_df.iterrows()
+        ]
 
-        # Insert in batches
-        batch_size = 10000
-        total_inserted = 0
-
-        print(f"[INFO] Inserting features into database in batches of {batch_size}...")
-        for idx, batch in enumerate(split_list(feature_objects, batch_size)):
-            try:
-                session.bulk_save_objects(batch, return_defaults=False)
-                session.commit()
-                total_inserted += len(batch)
-                print(f"[INFO] Batch {idx+1}: Inserted {len(batch)} features successfully.")
-            except Exception as e:
-                session.rollback()
-                print(f"[ERROR] Batch {idx+1}: Failed to insert features: {e}")
-
-        print(f"[SUCCESS] Inserted total {total_inserted} new features into features_data.")
+        session.bulk_save_objects(feature_objects)
+        session.commit()
+        return f"[OK] {symbol} - inserted {len(feature_objects)} features"
 
     except Exception as e:
         session.rollback()
-        print(f"[ERROR] Exception occurred: {e}")
+        return f"[FAIL] {symbol} - {e}"
+    finally:
+        session.close()
 
+def create_features(max_workers: int = 6):
+    Base.metadata.create_all(bind=engine)
+    session = SessionLocal()
+    try:
+        log("[INFO] Loading EOD and Symbol data...")
+        eod_records = session.query(EODData).all()
+        symbol_records = session.query(Symbol).filter(Symbol.active == True).all()
+        existing_features = session.query(FeatureData.trading_symbol, FeatureData.date).all()
+
+        if not eod_records or not symbol_records:
+            log("[ERROR] Missing EOD or Symbol data. Exiting.")
+            return
+
+        eod_df = pd.DataFrame([{
+            "trading_symbol": r.trading_symbol,
+            "exchange": r.exchange,
+            "date": r.date,
+            "open": r.open,
+            "high": r.high,
+            "low": r.low,
+            "close": r.close,
+            "volume": r.volume
+        } for r in eod_records])
+
+        symbol_df = pd.DataFrame([{
+            "trading_symbol": s.trading_symbol,
+            "fo_eligible": s.fo_eligible
+        } for s in symbol_records])
+
+        feature_pairs = set((r.trading_symbol, r.date) for r in existing_features)
+        all_symbols = eod_df["trading_symbol"].unique()
+
+        log(f"[INFO] Starting parallel feature generation for {len(all_symbols)} symbols...")
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(generate_and_insert_features, sym, eod_df, symbol_df, feature_pairs)
+                for sym in all_symbols
+            ]
+            for f in as_completed(futures):
+                log(f.result())
+
+        log("[SUCCESS] Feature generation completed.")
+    except Exception as e:
+        log(f"[ERROR] Failed during create_features: {e}")
     finally:
         session.close()
 
