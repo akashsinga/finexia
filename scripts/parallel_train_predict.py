@@ -6,13 +6,13 @@ from db.database import SessionLocal
 from db.models.symbol import Symbol
 from core.train.daily_trainer import train_models_for_one_symbol
 from core.predict.daily_predictor import predict_for_one_symbol
-from core.config import RANDOM_FOREST
+from core.config import RANDOM_FOREST, DEFAULT_DAILY_STRONG_MOVE_THRESHOLD
 from datetime import datetime
 
 def train_and_predict(symbol: str) -> str:
     try:
         # Train
-        train_models_for_one_symbol(symbol=symbol,move_classifiers=[RANDOM_FOREST],direction_classifiers=[RANDOM_FOREST])
+        train_models_for_one_symbol(symbol=symbol,move_classifiers=[RANDOM_FOREST],direction_classifiers=[RANDOM_FOREST], threshold_percent=DEFAULT_DAILY_STRONG_MOVE_THRESHOLD)
 
         # Predict
         predict_for_one_symbol(symbol=symbol)
