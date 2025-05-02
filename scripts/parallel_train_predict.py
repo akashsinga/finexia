@@ -23,6 +23,8 @@ def train_and_predict(symbol: str) -> str:
         log(f"[TRAIN] Starting for {symbol}...")
         train_start = time.time()
         
+        # Use LIGHTGBM instead of RANDOM_FOREST for much faster training
+        # Reduce max_days from 10 to 5 for faster processing
         train_models_for_one_symbol(symbol=symbol, move_classifiers=[LIGHTGBM], direction_classifiers=[LIGHTGBM], threshold_percent=DEFAULT_DAILY_STRONG_MOVE_THRESHOLD, min_days=1, max_days=5)
         
         train_duration = time.time() - train_start
