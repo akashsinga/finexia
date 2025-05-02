@@ -44,13 +44,13 @@ def get_classifier(classifier_name: str, scale_pos_weight: float = 1.0):
     """Factory function to create classifier instances with error handling."""
     try:
         if classifier_name == RANDOM_FOREST:
-            return RandomForestClassifier(n_estimators=RANDOM_FOREST_N_ESTIMATORS, max_depth=RANDOM_FOREST_MAX_DEPTH, min_samples_split=RANDOM_FOREST_MIN_SAMPLES, random_state=RANDOM_SEED, class_weight=RANDOM_FOREST_CLASS_WEIGHT, n_jobs=-1)
+            return RandomForestClassifier(n_estimators=min(RANDOM_FOREST_N_ESTIMATORS, 100), max_depth=RANDOM_FOREST_MAX_DEPTH, min_samples_split=RANDOM_FOREST_MIN_SAMPLES, random_state=RANDOM_SEED, class_weight=RANDOM_FOREST_CLASS_WEIGHT, n_jobs=1)
         elif classifier_name == XGBOOST:
             from xgboost import XGBClassifier
-            return XGBClassifier(n_estimators=200, max_depth=6, learning_rate=0.05, min_child_weight=3, random_state=RANDOM_SEED, verbosity=0, scale_pos_weight=scale_pos_weight, n_jobs=-1, tree_method='hist')  # Added tree_method='hist' for faster training
+            return XGBClassifier(n_estimators=100, max_depth=6, learning_rate=0.1, min_child_weight=3, random_state=RANDOM_SEED, verbosity=0, scale_pos_weight=scale_pos_weight, n_jobs=1, tree_method='hist')
         elif classifier_name == LIGHTGBM:
             from lightgbm import LGBMClassifier
-            return LGBMClassifier(n_estimators=LIGHTGBM_N_ESTIMATORS, max_depth=LIGHTGBM_MAX_DEPTH, learning_rate=LIGHTGBM_LEARNING_RATE, min_child_weight=LIGHTGBM_MIN_CHILD_WEIGHT, random_state=RANDOM_SEED, verbosity=-1, n_jobs=-1)
+            return LGBMClassifier(n_estimators=min(LIGHTGBM_N_ESTIMATORS, 100), max_depth=LIGHTGBM_MAX_DEPTH, learning_rate=LIGHTGBM_LEARNING_RATE * 2, min_child_weight=LIGHTGBM_MIN_CHILD_WEIGHT, random_state=RANDOM_SEED, verbosity=-1, n_jobs=1)
         else:
             raise ValueError(f"Unsupported classifier: {classifier_name}")
     except ImportError as e:
@@ -139,10 +139,7 @@ def select_best_features(X: pd.DataFrame, y: pd.Series, n_features: int = 8) -> 
         timestamped_log(f"[WARNING] Feature selection failed, using all {X_clean.shape[1]} features.")
         return X_clean.columns.tolist()
 
-def prepare_training_data(features_df: pd.DataFrame, closes_df: pd.DataFrame, 
-                         threshold_percent: float, 
-                         min_days: int = 1, 
-                         max_days: int = 10) -> Tuple[pd.DataFrame, List[str]]:
+def prepare_training_data(features_df: pd.DataFrame, closes_df: pd.DataFrame, threshold_percent: float, min_days: int = 1, max_days: int = 10) -> Tuple[pd.DataFrame, List[str]]:
     """Prepare data for model training with forward-looking targets and adaptive timeframes."""
     if features_df.empty or closes_df.empty:
         return pd.DataFrame(), []
@@ -158,8 +155,7 @@ def prepare_training_data(features_df: pd.DataFrame, closes_df: pd.DataFrame,
     if 'atr_14_normalized' in df.columns:
         # Calculate volatility and scale to prediction window range
         volatility = df['atr_14_normalized'].replace([np.inf, -np.inf], np.nan).rolling(20).mean().fillna(0.02)
-        volatility_scaled = min_days + (max_days - min_days) * (1 - np.clip((volatility - volatility.min()) / 
-                                                              (volatility.max() - volatility.min() + 1e-10), 0, 1))
+        volatility_scaled = min_days + (max_days - min_days) * (1 - np.clip((volatility - volatility.min()) / (volatility.max() - volatility.min() + 1e-10), 0, 1))
         df['prediction_window'] = np.clip(np.round(volatility_scaled), min_days, max_days)
     else:
         # Fallback to fixed window
@@ -212,8 +208,7 @@ def prepare_training_data(features_df: pd.DataFrame, closes_df: pd.DataFrame,
     df["percent_down_move"] = ((df["min_close_future"] - df["close"]) / close_nonzero) * 100
     
     # Create binary target variables
-    df["strong_move_target"] = ((df["percent_up_move"] >= threshold_percent) | 
-                              (df["percent_down_move"].abs() >= threshold_percent)).astype(int)
+    df["strong_move_target"] = ((df["percent_up_move"] >= threshold_percent) | (df["percent_down_move"].abs() >= threshold_percent)).astype(int)
     df["direction_target"] = (df["percent_up_move"] > df["percent_down_move"].abs()).astype(int)
     
     # Drop rows with missing targets
@@ -537,4 +532,4 @@ def train_daily_model(move_classifiers: List[str] = [LIGHTGBM],direction_classif
         session.close()
 
 if __name__ == "__main__":
-    train_daily_model(move_classifiers=[LIGHTGBM],direction_classifiers=[LIGHTGBM],min_days=1,max_days=10)
+    train_daily_model(move_classifiers=[LIGHTGBM], direction_classifiers=[LIGHTGBM], min_days=1, max_days=5)

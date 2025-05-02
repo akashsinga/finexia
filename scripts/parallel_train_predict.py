@@ -10,7 +10,7 @@ from db.database import SessionLocal
 from db.models.symbol import Symbol
 from core.train.daily_trainer import train_models_for_one_symbol
 from core.predict.daily_predictor import predict_for_one_symbol
-from core.config import RANDOM_FOREST, DEFAULT_DAILY_STRONG_MOVE_THRESHOLD
+from core.config import LIGHTGBM, DEFAULT_DAILY_STRONG_MOVE_THRESHOLD
 
 def log(msg): print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}")
 
@@ -23,7 +23,7 @@ def train_and_predict(symbol: str) -> str:
         log(f"[TRAIN] Starting for {symbol}...")
         train_start = time.time()
         
-        train_models_for_one_symbol(symbol=symbol,move_classifiers=[RANDOM_FOREST],direction_classifiers=[RANDOM_FOREST], threshold_percent=DEFAULT_DAILY_STRONG_MOVE_THRESHOLD)
+        train_models_for_one_symbol(symbol=symbol, move_classifiers=[LIGHTGBM], direction_classifiers=[LIGHTGBM], threshold_percent=DEFAULT_DAILY_STRONG_MOVE_THRESHOLD, min_days=1, max_days=5)
         
         train_duration = time.time() - train_start
         
