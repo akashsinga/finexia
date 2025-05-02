@@ -1,6 +1,6 @@
 # db/models/prediction_result.py
 
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime, UniqueConstraint, Index
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime, Boolean, UniqueConstraint, Index
 from sqlalchemy.sql import func
 from db.base_class import Base
 
@@ -11,6 +11,7 @@ class PredictionResult(Base):
         Index('idx_prediction_symbol_date', 'trading_symbol', 'date'),  # Optimized index for common queries
         Index('idx_prediction_date', 'date'),  # For date-based queries
         Index('idx_prediction_confidence', 'strong_move_confidence'),  # For filtering high-confidence predictions
+        Index('idx_prediction_verified', 'verified'),  # For filtering verified predictions
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -21,6 +22,13 @@ class PredictionResult(Base):
     direction_confidence = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     model_config_hash = Column(String, nullable=True)  # For traceability
+    
+    # New fields for validation
+    verified = Column(Boolean, default=False)
+    verification_date = Column(Date, nullable=True)
+    actual_move_percent = Column(Float, nullable=True)
+    actual_direction = Column(String(4), nullable=True)
+    days_to_fulfill = Column(Integer, nullable=True)
     
     def __repr__(self):
         direction = self.direction_prediction if self.direction_prediction else "NONE"
