@@ -1,12 +1,43 @@
 # scripts/create_admin.py
 import argparse
 import sys
-from sqlalchemy.exc import SQLAlchemyError
+import os
+import sqlalchemy
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import func
 from passlib.context import CryptContext
-from db.database import SessionLocal
-from db.models.user import User
-from db.base_class import Base
-from db.database import engine
+
+# Load environment variables if needed
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Get database URL from environment with fallback
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:password@localhost:5432/finexia")
+
+# Create engine and session
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Create base model
+Base = declarative_base()
+
+
+# Define User model directly in this script
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    full_name = Column(String, nullable=True)
+    is_admin = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 
 # Password hash context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -37,7 +68,7 @@ def create_admin_user(username, email, password, full_name=None):
         print(f"Admin user '{username}' created successfully.")
         return True
 
-    except SQLAlchemyError as e:
+    except sqlalchemy.exc.SQLAlchemyError as e:
         session.rollback()
         print(f"Database error: {str(e)}")
         return False

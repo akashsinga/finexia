@@ -39,7 +39,7 @@ class PredictionResponse(PredictionBase):
     created_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class PredictionFilter(BaseModel):
     """Filter parameters for predictions"""
