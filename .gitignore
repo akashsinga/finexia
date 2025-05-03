@@ -11,6 +11,11 @@ venv/
 # Cache directory
 cache/
 
+# UI
+node_modules/
+dist/
+package-lock.json
+
 # IDEs
 .vscode/
 .idea/
