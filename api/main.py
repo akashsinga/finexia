@@ -8,7 +8,7 @@ from api.config import settings
 from api.middleware.auth import JWTAuthMiddleware
 from api.middleware.rate_limiter import RateLimiterMiddleware
 from api.middleware.logging import RequestLoggingMiddleware
-from api.routers import predictions, historical, models, system, auth, users
+from api.routers import predictions, historical, models, system, auth, users, symbols
 from api.dependencies.db import get_db
 
 
@@ -44,6 +44,7 @@ app.include_router(models.router, prefix="/api/v1/models", tags=["models"])
 app.include_router(system.router, prefix="/api/v1/system", tags=["system"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
+app.include_router(symbols.router, prefix="/api/v1/symbols", tags=["symbols"])
 
 
 @app.get("/", tags=["root"])
