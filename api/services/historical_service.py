@@ -36,9 +36,19 @@ def get_feature_data(db: Session, symbol: str, from_date: date, to_date: date, f
     for item in data:
         # Extract features as dictionary
         feature_dict = {}
-        for feature_name in features or []:
-            if hasattr(item, feature_name):
-                feature_dict[feature_name] = getattr(item, feature_name)
+        # If no specific features requested, get all feature columns
+        if not features:
+            # Get all feature columns excluding metadata and string fields
+            feature_cols = [col for col in item.__table__.columns.keys() 
+                        if col not in ['id', 'trading_symbol', 'exchange', 'date', 'created_at', 'updated_at', 'source_tag']]
+            for feature_name in feature_cols:
+                if hasattr(item, feature_name):
+                    feature_dict[feature_name] = getattr(item, feature_name)
+        else:
+            # Get only requested features
+            for feature_name in features:
+                if hasattr(item, feature_name) and feature_name != 'source_tag':
+                    feature_dict[feature_name] = getattr(item, feature_name)
 
         response = FeatureDataResponse(id=item.id, trading_symbol=item.trading_symbol, exchange=item.exchange, date=item.date, features=feature_dict, created_at=item.created_at if hasattr(item, "created_at") else None)
         result.append(response)

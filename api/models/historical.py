@@ -1,6 +1,6 @@
 # api/models/historical.py
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import Any, List, Dict
 from datetime import date, datetime
 
 
@@ -36,7 +36,7 @@ class FeatureDataBase(BaseModel):
 
 class FeatureDataResponse(FeatureDataBase):
     id: int
-    features: Dict[str, float]
+    features: Dict[str, Any]
     created_at: datetime
 
     class Config:
