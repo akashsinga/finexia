@@ -27,4 +27,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
     access_token = create_access_token(data={"sub": user.username, "is_admin": user.is_admin}, expires_delta=access_token_expires)
 
+    print(f"Token created for {user.username}, is_admin: {user.is_admin}")
+    
     return Token(access_token=access_token, token_type="bearer", expires_at=expires_at)

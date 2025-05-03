@@ -86,9 +86,15 @@ def get_user_from_db(db: Session, username: str) -> Optional[UserInDB]:
     """
     from db.models.user import User as UserModel
 
-    # Make sure db is not a generator
-    if hasattr(db, '__next__'):
-        db = next(db)
+    # Convert generator to session if needed
+    try:
+        if hasattr(db, "__next__"):
+            db = next(db)
+    except StopIteration:
+        # If the generator is empty, create a new session
+        from db.database import SessionLocal
+
+        db = SessionLocal()
 
     user = db.query(UserModel).filter(UserModel.username == username).first()
     if not user:

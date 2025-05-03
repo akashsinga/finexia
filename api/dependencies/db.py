@@ -21,3 +21,17 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+def get_db_session() -> Session:
+    """
+    Get a non-generator database session
+    
+    Returns:
+        Session: SQLAlchemy database session object
+        
+    Note:
+        This should be used in service functions that need direct
+        access to a session object rather than a generator
+    """
+    db = SessionLocal()
+    return db
