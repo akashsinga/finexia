@@ -3,6 +3,7 @@ uvicorn[standard]
 sqlalchemy
 alembic
 pydantic
+pydantic-settings
 requests
 pandas
 scikit-learn
@@ -11,3 +12,5 @@ python-dotenv
 psycopg2-binary
 xgboost
 lightgbm
+python-jose[cryptography]
+passlib[bcrypt]
