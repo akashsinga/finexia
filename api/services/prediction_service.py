@@ -8,6 +8,8 @@ from db.models.symbol import Symbol
 from core.predict.daily_predictor import predict_for_one_symbol
 from core.train.daily_trainer import train_models_for_one_symbol
 from api.models.prediction import PredictionFilter, PredictionResponse
+import asyncio
+from api.websockets.manager import connection_manager
 
 
 def get_latest_prediction(db: Session, symbol: str) -> Optional[PredictionResponse]:
@@ -64,8 +66,28 @@ def refresh_prediction(db: Session, symbol: str, force_retrain: bool = False) ->
     if not success:
         return None
 
-    # Fetch and return the newly created prediction
-    return get_latest_prediction(db, symbol)
+    # Fetch the newly created prediction
+    prediction = get_latest_prediction(db, symbol)
+
+    # Broadcast the prediction via WebSocket if available
+    try:
+        # Create a dict representation of the prediction for broadcasting
+        if prediction:
+            prediction_dict = {"date": prediction.date.isoformat(), "strong_move_confidence": prediction.strong_move_confidence, "direction_prediction": prediction.direction_prediction, "direction_confidence": prediction.direction_confidence}
+
+            # Use create_task to run this asynchronously without waiting
+            asyncio.create_task(connection_manager.broadcast(message={"type": "new_prediction", "symbol": symbol, "prediction": prediction_dict}, topic=f"predictions_{symbol}"))
+    except ImportError:
+        # WebSocket support not enabled, continue without broadcasting
+        pass
+    except Exception as e:
+        # Log error but don't fail the prediction refresh
+        import logging
+
+        logging.getLogger("finexia-api").error(f"WebSocket broadcast error: {str(e)}")
+
+    # Return the prediction
+    return prediction
 
 
 def get_verified_prediction_stats(db: Session, start_date: Optional[date] = None, end_date: Optional[date] = None) -> Dict[str, Any]:

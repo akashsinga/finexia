@@ -10,6 +10,7 @@ from api.middleware.auth import JWTAuthMiddleware
 from api.middleware.rate_limiter import RateLimiterMiddleware
 from api.middleware.logging import RequestLoggingMiddleware
 from api.routers import predictions, historical, models, system, auth, users, symbols
+from api.websockets import init_websockets
 
 
 @asynccontextmanager
@@ -47,6 +48,8 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(symbols.router, prefix="/api/v1/symbols", tags=["symbols"])
 
+
+init_websockets(app)
 
 @app.get("/", tags=["root"])
 async def root():
