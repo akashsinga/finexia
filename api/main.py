@@ -1,15 +1,15 @@
 # api/main.py
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from api.config import settings
+from api.middleware.db_middleware import DBSessionMiddleware  # Add this import
 from api.middleware.auth import JWTAuthMiddleware
 from api.middleware.rate_limiter import RateLimiterMiddleware
 from api.middleware.logging import RequestLoggingMiddleware
 from api.routers import predictions, historical, models, system, auth, users, symbols
-from api.dependencies.db import get_db
 
 
 @asynccontextmanager
@@ -32,7 +32,8 @@ app = FastAPI(title="Finexia API", description="Stock Market Intelligence API", 
 # Adding CORS middleware
 app.add_middleware(CORSMiddleware, allow_origins=settings.CORS_ORIGINS, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# Add custom middleware
+# Add custom middleware - DBSessionMiddleware first
+app.add_middleware(DBSessionMiddleware)  # Add this line before other middleware
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(RateLimiterMiddleware)
 app.add_middleware(JWTAuthMiddleware)
