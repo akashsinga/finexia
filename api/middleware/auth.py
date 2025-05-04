@@ -24,6 +24,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         """
         path = request.url.path
         logger.info(f"Processing request for path: {path}")
+        
+        if request.method == "OPTIONS":
+            return await call_next(request)
 
         # Check if path is public
         is_public = any(path.startswith(public_path) for public_path in PUBLIC_PATHS) or request.method == "OPTIONS"

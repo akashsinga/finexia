@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Finexia API", description="Stock Market Intelligence API", version="1.0.0", lifespan=lifespan)
 
 # Adding CORS middleware
-app.add_middleware(CORSMiddleware, allow_origins=settings.CORS_ORIGINS, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=settings.CORS_ORIGINS, allow_credentials=True, allow_methods=["*"], allow_headers=["*"], expose_headers=["Content-Type", "Authorization"], max_age=86400)
 
 # Add custom middleware - DBSessionMiddleware first
 app.add_middleware(DBSessionMiddleware)  # Add this line before other middleware
@@ -50,6 +50,7 @@ app.include_router(symbols.router, prefix="/api/v1/symbols", tags=["symbols"])
 
 
 init_websockets(app)
+
 
 @app.get("/", tags=["root"])
 async def root():
