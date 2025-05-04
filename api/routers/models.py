@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import date
 from sqlalchemy.orm import Session
 
-from api.models.model import ModelStatusResponse, ModelList, ModelTrainingRequest, ModelTrainingResponse, ModelPerformanceResponse
+from api.models.model import ModelStatusResponse, ModelList, ModelTrainingRequest, ModelTrainingResponse, ModelPerformanceResponse, ModelPerformanceRequest
 from api.dependencies.db import get_db
 from api.dependencies.auth import get_current_user
 from api.services.model_service import get_model_status, list_models, train_model_async, get_model_performance, get_model_performance_history
@@ -44,10 +44,10 @@ async def train_model_for_symbol(background_tasks: BackgroundTasks, symbol: str 
     return ModelTrainingResponse(status="training_started", symbol=symbol, message=f"Training started for {symbol}", settings={"move_classifier": move_classifier, "direction_classifier": direction_classifier, "threshold": threshold, "max_days": max_days})
 
 
-@router.get("/performance", response_model=List[ModelPerformanceResponse])
-async def get_overall_model_performance(top_n: int = Query(10, description="Number of top models to return"), metric: str = Query("f1_score", description="Metric to rank by (accuracy, precision, recall, f1_score)"), db: Session = Depends(get_db)):
+@router.post("/performance", response_model=List[ModelPerformanceResponse])
+async def get_overall_model_performance(request: ModelPerformanceRequest, db: Session = Depends(get_db)):
     """Get overall performance metrics for all models"""
-    performance = get_model_performance(db, top_n, metric)
+    performance = get_model_performance(db, request.top_n, request.metric)
     return performance
 
 
