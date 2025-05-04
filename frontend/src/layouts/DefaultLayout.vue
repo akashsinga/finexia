@@ -15,7 +15,7 @@
       </div>
       <div class="sidebar-nav">
         <div class="nav-list">
-          <div v-for="(item, i) in navItems" :key="i" class="nav-item" :class="{ 'active': $route.path.includes(item.to) }">
+          <div v-for="(item, i) in navItems" :key="i" class="nav-item" :class="{ 'active': $route.path.includes(item.to) }" @click="$router.push({ name: item.pathName })">
             <div v-if="!collapsed" class="nav-status-indicator"></div>
             <div class="nav-link">
               <v-icon class="nav-link-icon">{{ item.icon }}</v-icon>
@@ -34,11 +34,11 @@ export default {
     return {
       collapsed: false,
       navItems: [
-        { title: 'Dashboard', icon: 'mdi-view-dashboard', to: '/dashboard' },
-        { title: 'Symbols', icon: 'mdi-chart-line', to: '/symbols' },
-        { title: 'Predictions', icon: 'mdi-chart-bar', to: '/predictions' },
-        { title: 'Models', icon: 'mdi-brain', to: '/models' },
-        { title: 'Settings', icon: 'mdi-cog', to: '/settings' },
+        { title: 'Dashboard', icon: 'mdi-view-dashboard', to: 'app/dashboard', pathName: 'Dashboard' },
+        { title: 'Symbols', icon: 'mdi-chart-line', to: 'app/symbols', pathName: 'SymbolsExplorer' },
+        { title: 'Predictions', icon: 'mdi-chart-bar', to: 'app/predictions', pathName: 'Predictions' },
+        { title: 'Models', icon: 'mdi-brain', to: 'app/models', pathName: 'ModelPerformance' },
+        { title: 'Settings', icon: 'mdi-cog', to: 'app/settings', pathName: 'Settings' },
       ]
     }
   }
@@ -83,7 +83,7 @@ export default {
       @apply flex flex-col space-y-3;
 
       .nav-item {
-        @apply flex relative cursor-pointer;
+        @apply flex relative cursor-pointer transition-all duration-300;
 
         .nav-status-indicator {
           @apply w-1.5 absolute bg-transparent h-3/4 -left-4 top-1.5 rounded-r-full;
@@ -117,14 +117,14 @@ export default {
 
         &.active {
           .nav-status-indicator {
-            @apply bg-orange-500;
+            @apply bg-primary;
           }
 
           .nav-link {
             @apply bg-gray-100;
 
             .nav-link-icon {
-              @apply text-orange-500;
+              @apply text-primary;
             }
 
             .nav-link-text {

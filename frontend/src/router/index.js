@@ -32,41 +32,48 @@ const routes = [
     meta: { public: true, title: 'Login | Finexia' }
   },
   {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: DefaultLayoutWrapper(Dashboard),
-    meta: { requiresAuth: true, title: 'Dashboard | Finexia' }
-  },
-  {
-    path: '/symbols',
-    name: 'SymbolsExplorer',
-    component: DefaultLayoutWrapper(SymbolsExplorer),
-    meta: { requiresAuth: true, title: 'Symbols | Finexia' }
-  },
-  {
-    path: '/symbols/:symbol',
-    name: 'SymbolDetail',
-    component: DefaultLayoutWrapper(SymbolDetail),
-    props: true,
-    meta: { requiresAuth: true, title: 'Symbol Details | Finexia' }
-  },
-  {
-    path: '/predictions',
-    name: 'Predictions',
-    component: DefaultLayoutWrapper(Predictions),
-    meta: { requiresAuth: true, title: 'Predictions | Finexia' }
-  },
-  {
-    path: '/models',
-    name: 'ModelPerformance',
-    component: DefaultLayoutWrapper(ModelPerformance),
-    meta: { requiresAuth: true, title: 'Models | Finexia' }
-  },
-  {
-    path: '/settings',
-    name: 'Settings',
-    component: DefaultLayoutWrapper(Settings),
-    meta: { requiresAuth: true, title: 'Settings | Finexia' }
+    path: '/app',
+    name: 'Default Layout',
+    component: DefaultLayout,
+    children: [
+      {
+        path: 'dashboard',
+        name: 'Dashboard',
+        component: Dashboard,
+        meta: { requiresAuth: true, title: 'Dashboard | Finexia' }
+      },
+      {
+        path: 'symbols',
+        name: 'SymbolsExplorer',
+        component: SymbolsExplorer,
+        meta: { requiresAuth: true, title: 'Symbols | Finexia' }
+      },
+      {
+        path: 'symbols/:symbol',
+        name: 'SymbolDetail',
+        component: SymbolDetail,
+        props: true,
+        meta: { requiresAuth: true, title: 'Symbol Details | Finexia' }
+      },
+      {
+        path: 'predictions',
+        name: 'Predictions',
+        component: Predictions,
+        meta: { requiresAuth: true, title: 'Predictions | Finexia' }
+      },
+      {
+        path: 'models',
+        name: 'ModelPerformance',
+        component: ModelPerformance,
+        meta: { requiresAuth: true, title: 'Models | Finexia' }
+      },
+      {
+        path: 'settings',
+        name: 'Settings',
+        component: Settings,
+        meta: { requiresAuth: true, title: 'Settings | Finexia' }
+      }
+    ]
   },
   {
     path: '/:pathMatch(.*)*',

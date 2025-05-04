@@ -115,7 +115,7 @@ export default {
 
       try {
         await this.authStore.login(this.username, this.password)
-        this.$router.push('/dashboard')
+        this.$router.push('app/dashboard')
       } catch (err) {
         this.error = err.response?.data?.message || 'Invalid credentials. Please try again.'
       } finally {
@@ -145,7 +145,7 @@ export default {
 }
 
 .login-card {
-  @apply bg-white rounded-xl shadow-xl p-8 border border-gray-100;
+  @apply bg-white rounded-xl shadow-xl p-8 ring-1 ring-gray-300;
   backdrop-filter: blur(10px);
 }
 
@@ -214,7 +214,7 @@ export default {
 }
 
 .input-field {
-  @apply w-full py-2 pl-10 pr-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 text-sm;
+  @apply w-full py-2 pl-10 pr-10 outline-none ring-1 ring-gray-200 rounded-lg focus:ring-1 focus:ring-blue-400 focus:border-blue-400 transition-all duration-300 text-sm;
 }
 
 .remember-me {
