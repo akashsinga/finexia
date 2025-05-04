@@ -287,7 +287,7 @@ export default {
   }
 
   .header {
-    @apply sticky top-0 z-10 bg-white ring-1 ring-gray-300 ml-[1px] px-6 py-3 flex items-center justify-between;
+    @apply sticky top-0 z-50 bg-white ring-1 ring-gray-300 ml-[1px] px-6 py-3 flex items-center justify-between;
 
     .page-title {
       @apply text-lg font-medium;
