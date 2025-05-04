@@ -1,6 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { h } from 'vue'
+import { useAuthStore } from '@/store/auth.store'
+
 import DefaultLayout from '../layouts/DefaultLayout.vue'
+import Login from '../layouts/LoginLayout.vue'
 
 // Import your view components
 import Dashboard from '../views/Dashboard.vue'
@@ -23,45 +26,51 @@ const DefaultLayoutWrapper = (Component) => {
 
 const routes = [
   {
+    path: '/login',
+    name: 'Login',
+    component: Login,
+    meta: { public: true, title: 'Login | Finexia' }
+  },
+  {
     path: '/dashboard',
     name: 'Dashboard',
     component: DefaultLayoutWrapper(Dashboard),
-    meta: { title: 'Dashboard | Finexia' }
+    meta: { requiresAuth: true, title: 'Dashboard | Finexia' }
   },
   {
     path: '/symbols',
     name: 'SymbolsExplorer',
     component: DefaultLayoutWrapper(SymbolsExplorer),
-    meta: { title: 'Symbols | Finexia' }
+    meta: { requiresAuth: true, title: 'Symbols | Finexia' }
   },
   {
     path: '/symbols/:symbol',
     name: 'SymbolDetail',
     component: DefaultLayoutWrapper(SymbolDetail),
     props: true,
-    meta: { title: 'Symbol Details | Finexia' }
+    meta: { requiresAuth: true, title: 'Symbol Details | Finexia' }
   },
   {
     path: '/predictions',
     name: 'Predictions',
     component: DefaultLayoutWrapper(Predictions),
-    meta: { title: 'Predictions | Finexia' }
+    meta: { requiresAuth: true, title: 'Predictions | Finexia' }
   },
   {
     path: '/models',
     name: 'ModelPerformance',
     component: DefaultLayoutWrapper(ModelPerformance),
-    meta: { title: 'Models | Finexia' }
+    meta: { requiresAuth: true, title: 'Models | Finexia' }
   },
   {
     path: '/settings',
     name: 'Settings',
     component: DefaultLayoutWrapper(Settings),
-    meta: { title: 'Settings | Finexia' }
+    meta: { requiresAuth: true, title: 'Settings | Finexia' }
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/dashboard'
+    redirect: '/login'
   }
 ]
 
@@ -71,9 +80,49 @@ const router = createRouter({
 })
 
 // Update page title based on route meta
-router.beforeEach((to, from, next) => {
-  document.title = to.meta.title || 'Finexia | Predictive Stock Analytics'
-  next()
+router.beforeEach(async (to, from, next) => {
+  // Set page title
+  document.title = to.meta.title || 'Finexia | Stock Market Intelligence'
+
+  // Check if route requires authentication
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  const isPublic = to.matched.some(record => record.meta.public)
+
+  if (!requiresAuth && isPublic) {
+    // Public route, proceed
+    return next()
+  }
+
+  // Get auth store (initialized by Pinia)
+  const authStore = useAuthStore()
+
+  // Check if user is logged in
+  const isLoggedIn = authStore.isLoggedIn
+
+  if (requiresAuth && !isLoggedIn) {
+    // Not logged in, redirect to login
+    return next('/login')
+  }
+
+  // User is logged in, verify token validity
+  if (isLoggedIn) {
+    try {
+      // Verify token with backend
+      const isValid = await authStore.verifyToken()
+      if (isValid) {
+        next() // Token is valid, proceed
+      } else {
+        // Token verification failed, redirect to login
+        next('/login')
+      }
+    } catch (error) {
+      // Token is invalid, logout and redirect to login
+      authStore.logout()
+      next('/login')
+    }
+  } else {
+    next() // Proceed normally
+  }
 })
 
 export default router

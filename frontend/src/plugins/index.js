@@ -30,6 +30,11 @@ api.interceptors.response.use(
   error => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token')
+      localStorage.removeItem('user')
+
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
@@ -58,4 +63,4 @@ export default {
 }
 
 // Export individual instances in case they're needed separately
-export { lodash, axios, moment }
+export { lodash, api, axios, moment }
