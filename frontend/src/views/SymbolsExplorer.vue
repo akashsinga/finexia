@@ -333,7 +333,7 @@ export default {
 
     getInstrumentTypeColor(type) {
       const colorMap = {
-        'EQ': 'blue',
+        'EQUITY': 'blue',
         'FUT': 'purple',
         'OPT': 'orange',
         'ETF': 'green',
@@ -344,7 +344,7 @@ export default {
 
     getSymbolBadgeClass(type) {
       const classMap = {
-        'EQ': 'badge-eq',
+        'EQUITY': 'badge-eq',
         'FUT': 'badge-fut',
         'OPT': 'badge-opt',
         'ETF': 'badge-etf',
@@ -355,7 +355,7 @@ export default {
 
     getInstrumentPillClass(type) {
       const classMap = {
-        'EQ': 'pill-eq',
+        'EQUITY': 'pill-eq',
         'FUT': 'pill-fut',
         'OPT': 'pill-opt',
         'ETF': 'pill-etf',
