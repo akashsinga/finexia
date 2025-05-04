@@ -1,7 +1,7 @@
 <template>
   <div class="pipeline-dashboard">
     <!-- Header Section with Pipeline Status -->
-    <div class="dashboard-header bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+    <div class="dashboard-header bg-white rounded-md shadow-sm border border-gray-200 p-5">
       <div class="flex justify-between items-center">
         <div>
           <h1 class="text-xl font-bold text-gray-800">Data Pipeline</h1>
@@ -44,7 +44,7 @@
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
       <!-- System Stats Card -->
-      <div class="stats-card bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+      <div class="stats-card bg-white rounded-md shadow-sm border border-gray-200 p-5">
         <h2 class="text-base font-bold text-gray-800 mb-4">System Statistics</h2>
         <div class="grid grid-cols-2 gap-4">
           <div class="stat-item">
@@ -74,7 +74,7 @@
       </div>
 
       <!-- Model Stats Card -->
-      <div class="models-card bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+      <div class="models-card bg-white rounded-md shadow-sm border border-gray-200 p-5">
         <h2 class="text-base font-bold text-gray-800 mb-4">Model Information</h2>
         <div class="grid grid-cols-2 gap-4">
           <div class="stat-item">
@@ -98,7 +98,7 @@
     </div>
 
     <!-- Pipeline Steps Section -->
-    <div class="steps-card bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
+    <div class="steps-card bg-white rounded-md shadow-sm border border-gray-200 p-5 mt-6">
       <h2 class="text-base font-bold text-gray-800 mb-4">Pipeline Steps</h2>
       <div class="steps-container">
         <div v-for="(step, index) in pipelineSteps" :key="step.id" class="step-item" :class="{ 'step-running': isRunning && pipelineStatus.currentStep === step.name }">
@@ -120,7 +120,7 @@
     </div>
 
     <!-- Pipeline Configuration Section -->
-    <div class="config-card bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
+    <div class="config-card bg-white rounded-md shadow-sm border border-gray-200 p-5 mt-6">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-base font-bold text-gray-800">Quick Configuration</h2>
         <v-btn color="primary" size="small" variant="tonal" @click="showConfigModal = true">
@@ -137,7 +137,7 @@
     </div>
 
     <!-- Status Message -->
-    <div v-if="statusMessage" class="status-message mt-6 p-4 rounded-lg" :class="statusMessageClass">
+    <div v-if="statusMessage" class="status-message mt-6 p-4 rounded-md" :class="statusMessageClass">
       <div class="flex items-start">
         <v-icon :icon="statusMessageIcon" class="mr-2 mt-0.5"></v-icon>
         <div>
@@ -149,7 +149,7 @@
 
     <!-- Configuration Modal -->
     <v-dialog v-model="showConfigModal" max-width="600">
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div class="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
         <div class="p-5 border-b border-gray-200">
           <h2 class="text-lg font-bold">Pipeline Configuration</h2>
         </div>
@@ -489,7 +489,7 @@ export default {
 
 /* Statistics Cards */
 .stat-item {
-  @apply bg-gray-50 rounded-lg p-3 border border-gray-100;
+  @apply bg-gray-50 rounded-md p-3 border border-gray-100;
 }
 
 /* Pipeline Steps */
@@ -498,7 +498,7 @@ export default {
 }
 
 .step-item {
-  @apply flex items-center bg-gray-50 rounded-lg p-3 border border-gray-100;
+  @apply flex items-center bg-gray-50 rounded-md p-3 border border-gray-100;
 }
 
 .step-running {
@@ -527,7 +527,7 @@ export default {
 
 /* Config Groups */
 .config-group {
-  @apply bg-gray-50 rounded-lg p-3 border border-gray-100;
+  @apply bg-gray-50 rounded-md p-3 border border-gray-100;
 }
 
 /* Status Message */
