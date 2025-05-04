@@ -36,7 +36,7 @@ export default {
       // Convert Chart.js format to ECharts format
       const dataset = this.chartData.datasets[0]
 
-      return {
+      const defaultOptions = {
         tooltip: {
           trigger: 'axis',
           formatter: function (params) {
@@ -82,9 +82,27 @@ export default {
               color: dataset.borderColor || '#1E3A8A'
             }
           }
-        ],
-        ...this.options
+        ]
       }
+
+      // Fix for the axis label formatter
+      const mergedOptions = {
+        ...defaultOptions,
+        ...this.options,
+        yAxis: {
+          ...defaultOptions.yAxis,
+          ...(this.options.yAxis || {}),
+          axisLabel: {
+            ...(defaultOptions.yAxis.axisLabel || {}),
+            ...(this.options.yAxis?.axisLabel || {}),
+            formatter: function (value) {
+              return (value * 100) + '%'
+            }
+          }
+        }
+      }
+
+      return mergedOptions
     }
   }
 }

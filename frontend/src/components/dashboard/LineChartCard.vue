@@ -19,7 +19,7 @@
     </template>
 
     <div class="h-[280px]">
-      <LineChart :chart-data="chartData" :options="chartOptions" />
+      <LineChart :chart-data="chartData" :options="mergedOptions" />
     </div>
   </CardContainer>
 </template>
@@ -58,6 +58,68 @@ export default {
       default: function () {
         return []
       }
+    }
+  },
+  computed: {
+    // Merge default options with provided options
+    mergedOptions() {
+      const defaultOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: false,
+            min: 0,
+            max: 1,
+            ticks: {
+              callback: function (value) {
+                return (value * 100) + '%';
+              }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                return 'Accuracy: ' + (context.parsed.y * 100).toFixed(1) + '%';
+              }
+            }
+          }
+        }
+      };
+
+      // Deep merge the default options with provided options
+      return this.deepMerge(defaultOptions, this.chartOptions);
+    }
+  },
+  methods: {
+    // Deep merge utility for objects
+    deepMerge(target, source) {
+      const output = { ...target };
+
+      if (this.isObject(target) && this.isObject(source)) {
+        Object.keys(source).forEach(key => {
+          if (this.isObject(source[key])) {
+            if (!(key in target)) {
+              Object.assign(output, { [key]: source[key] });
+            } else {
+              output[key] = this.deepMerge(target[key], source[key]);
+            }
+          } else {
+            Object.assign(output, { [key]: source[key] });
+          }
+        });
+      }
+
+      return output;
+    },
+
+    isObject(item) {
+      return (item && typeof item === 'object' && !Array.isArray(item));
     }
   },
   emits: ['refresh', 'period-change']
