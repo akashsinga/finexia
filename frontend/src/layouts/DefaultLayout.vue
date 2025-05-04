@@ -1,5 +1,6 @@
 <template>
   <div class="app-container">
+    <!-- Sidebar -->
     <div class="sidebar" :class="{ collapsed }">
       <!-- Header -->
       <div class="sidebar-header">
@@ -46,6 +47,22 @@
         </div>
       </div>
     </div>
+
+    <!-- Main Content -->
+    <div :class="['main-content', { collapsed }]">
+      <div class="header">
+        <h1 class="page-title">{{ $route.meta.title }}</h1>
+        <div class="market-status flex items-center space-x-2 text-sm">
+          <span :class="['status-dot', marketStatus === 'LIVE' ? 'bg-green-500' : 'bg-red-500']"></span>
+          <span class="font-medium">{{ marketStatus }}</span>
+          <span class="text-gray-500">• {{ formattedTime }} IST</span>
+        </div>
+      </div>
+
+      <div class="content-area">
+        <router-view />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -56,6 +73,9 @@ export default {
   data() {
     return {
       collapsed: false,
+      marketOpenTime: '09:15',
+      marketCloseTime: '15:30',
+      currentTime: new Date(),
       navItems: [
         { title: 'Dashboard', icon: 'mdi-view-dashboard', pathName: 'Dashboard' },
         { title: 'Symbols', icon: 'mdi-chart-line', pathName: 'SymbolsExplorer' },
@@ -68,23 +88,51 @@ export default {
   computed: {
     authStore() {
       return useAuthStore()
+    },
+    marketStatus: function () {
+      const now = this.currentTime
+      const open = new Date(now)
+      const close = new Date(now)
+
+      const [openH, openM] = this.marketOpenTime.split(':')
+      const [closeH, closeM] = this.marketCloseTime.split(':')
+
+      open.setHours(openH, openM, 0)
+      close.setHours(closeH, closeM, 0)
+
+      return now >= open && now <= close ? 'LIVE' : 'CLOSED'
+    },
+    formattedTime: function () {
+      return this.currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
     }
   },
   methods: {
-    toggleSidebar() {
+    toggleSidebar: function () {
       this.collapsed = !this.collapsed
     },
-    logout() {
+    logout: function () {
       this.authStore.logout()
       this.$router.push({ name: 'Login' })
     }
+  },
+  mounted() {
+    this._clock = setInterval(() => {
+      this.currentTime = new Date()
+    }, 60000)
+  },
+  beforeUnmount() {
+    clearInterval(this._clock)
   }
 }
 </script>
 
 <style lang="postcss" scoped>
 .app-container {
-  @apply flex min-h-screen;
+  @apply flex min-h-screen w-full;
+}
+
+.status-dot {
+  @apply w-2 h-2 rounded-full;
 }
 
 .sidebar {
@@ -192,7 +240,7 @@ export default {
         @apply flex items-center space-x-3 pr-3 py-1;
 
         .avatar {
-          @apply w-8 aspect-square min-w-[2] flex-shrink-0 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-base;
+          @apply w-8 aspect-square min-w-[2rem] flex-shrink-0 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-base;
         }
 
         .user-info {
@@ -228,6 +276,29 @@ export default {
     .user-account {
       @apply hidden;
     }
+  }
+}
+
+.main-content {
+  @apply flex flex-col min-h-screen transition-all duration-300 w-full pl-64;
+
+  &.collapsed {
+    @apply pl-16;
+  }
+
+  .header {
+    @apply sticky top-0 z-10 bg-white ring-1 ring-gray-300 ml-[1px] px-6 py-3 flex items-center justify-between;
+
+    .page-title {
+      @apply text-lg font-medium;
+    }
+  }
+
+  .content-area {
+    @apply flex-1 p-6 overflow-auto;
+    background: radial-gradient(circle, rgba(30, 58, 138, 0.1) 2px, transparent 2px), radial-gradient(circle, rgba(14, 165, 233, 0.1) 2px, transparent 2px);
+    background-size: 40px 40px;
+    background-position: 0 0, 20px 20px;
   }
 }
 </style>
