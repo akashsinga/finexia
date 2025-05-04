@@ -18,7 +18,10 @@
       <!-- Direction Predictions -->
       <DoughnutChartCard title="Direction Predictions" :chart-data="directionData" :chart-options="directionChartOptions" :loading="loading.directionStats" @refresh="refreshDirectionStats">
         <template #chart-details>
-          <div class="flex justify-center gap-8">
+          <div v-if="directionStats.upPredictions === 0 && directionStats.downPredictions === 0" class="text-center text-gray-500 py-4">
+            No direction prediction data available
+          </div>
+          <div v-else class="flex justify-center gap-8">
             <div class="text-center">
               <div class="text-sm text-gray-500">UP Predictions</div>
               <div class="text-xl font-semibold text-success">{{ directionStats.upPredictions || 0 }}</div>
@@ -109,12 +112,12 @@ export default {
         downAccuracy: 0
       },
       loading: {
-        systemStatus: true,
-        accuracyTrend: true,
-        directionStats: true,
-        topPredictions: true,
-        verifiedPredictions: true,
-        modelPerformance: true
+        systemStatus: false,
+        accuracyTrend: false,
+        directionStats: false,
+        topPredictions: false,
+        verifiedPredictions: false,
+        modelPerformance: false
       },
       topPredictions: [],
       verifiedPredictions: [],
@@ -197,14 +200,26 @@ export default {
   },
   computed: {
     directionData: function () {
+      // Add defensive checks to prevent loading issues
+      const upCount = this.directionStats.upPredictions || 0;
+      const downCount = this.directionStats.downPredictions || 0;
+
+      // Only return valid chart data if we have at least one value
+      if (upCount === 0 && downCount === 0) {
+        return {
+          labels: ['No Data'],
+          datasets: [{
+            data: [1],
+            backgroundColor: ['#94a3b8'], // Gray for no data
+          }]
+        };
+      }
+
       return {
         labels: ['UP', 'DOWN'],
         datasets: [
           {
-            data: [
-              this.directionStats.upPredictions || 0,
-              this.directionStats.downPredictions || 0
-            ],
+            data: [upCount, downCount],
             backgroundColor: [
               '#4ADE80', // success color for UP
               '#EF4444'  // error color for DOWN
@@ -217,68 +232,69 @@ export default {
   },
   methods: {
     fetchSystemStatus: function () {
-      this.loading.systemStatus = true
+      this.loading.systemStatus = true;
       return api.get('/system/status')
         .then(response => {
-          this.stats.totalPredictions = response.data.total_predictions
-          this.stats.todayPredictions = response.data.today_predictions
+          this.stats.totalPredictions = response.data.total_predictions;
+          this.stats.todayPredictions = response.data.today_predictions;
 
           // Calculate change - this would come from your API in a real implementation
-          this.stats.predictionChange = 5 // placeholder
+          this.stats.predictionChange = 5; // placeholder
 
           // Update last refresh time
-          this.updateLastRefreshTime()
+          this.updateLastRefreshTime();
         })
         .catch(error => {
-          console.error('Error fetching system status:', error)
+          console.error('Error fetching system status:', error);
         })
         .finally(() => {
-          this.loading.systemStatus = false
-        })
+          this.loading.systemStatus = false;
+        });
     },
 
     fetchPredictionStats: function () {
       return api.get('/predictions/status/accuracy')
         .then(response => {
-          this.stats.accuracy = response.data.accuracy || 0
-          this.stats.accuracyChange = 2.3 // placeholder
+          this.stats.accuracy = response.data.accuracy || 0;
+          this.stats.accuracyChange = 2.3; // placeholder
 
-          this.directionStats.upPredictions = response.data.up_predictions || 0
-          this.directionStats.downPredictions = response.data.down_predictions || 0
+          this.directionStats.upPredictions = response.data.up_predictions || 0;
+          this.directionStats.downPredictions = response.data.down_predictions || 0;
 
           // Calculate direction accuracies - these could come from your API
           if (response.data.direction_accuracy) {
-            this.directionStats.upAccuracy = response.data.direction_accuracy
-            this.directionStats.downAccuracy = response.data.direction_accuracy
+            this.directionStats.upAccuracy = response.data.direction_accuracy;
+            this.directionStats.downAccuracy = response.data.direction_accuracy;
           }
         })
         .catch(error => {
-          console.error('Error fetching prediction stats:', error)
-        })
+          console.error('Error fetching prediction stats:', error);
+        });
     },
+
     fetchAccuracyTrend: function () {
-      this.loading.accuracyTrend = true
+      this.loading.accuracyTrend = true;
 
       // This would be a real API call in production
       // return api.get(`/predictions/accuracy/trend?period=${this.accuracyPeriod}`)
 
       // Placeholder data generation for demo
       setTimeout(() => {
-        const labels = []
-        const data = []
+        const labels = [];
+        const data = [];
 
         // Generate placeholder data based on selected period
         const days = this.accuracyPeriod === '7d' ? 7 :
-          this.accuracyPeriod === '30d' ? 30 : 90
+          this.accuracyPeriod === '30d' ? 30 : 90;
 
-        const now = new Date()
+        const now = new Date();
         for (let i = days - 1; i >= 0; i--) {
-          const date = new Date(now)
-          date.setDate(date.getDate() - i)
-          labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+          const date = new Date(now);
+          date.setDate(date.getDate() - i);
+          labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
 
           // Random accuracy between 0.7 and 0.9
-          data.push(0.7 + Math.random() * 0.2)
+          data.push(0.7 + Math.random() * 0.2);
         }
 
         this.accuracyTrendData = {
@@ -293,16 +309,16 @@ export default {
               fill: true
             }
           ]
-        }
+        };
 
-        this.loading.accuracyTrend = false
-      }, 800)
+        this.loading.accuracyTrend = false;
+      }, 800);
 
-      return Promise.resolve()
+      return Promise.resolve();
     },
 
     fetchTopPredictions: function () {
-      this.loading.topPredictions = true
+      this.loading.topPredictions = true;
       return api.get('/predictions', {
         params: {
           min_confidence: 0.7,
@@ -310,17 +326,18 @@ export default {
         }
       })
         .then(response => {
-          this.topPredictions = response.data.predictions || []
+          this.topPredictions = response.data.predictions || [];
         })
         .catch(error => {
-          console.error('Error fetching top predictions:', error)
+          console.error('Error fetching top predictions:', error);
         })
         .finally(() => {
-          this.loading.topPredictions = false
-        })
+          this.loading.topPredictions = false;
+        });
     },
+
     fetchVerifiedPredictions: function () {
-      this.loading.verifiedPredictions = true
+      this.loading.verifiedPredictions = true;
       return api.get('/predictions', {
         params: {
           verified: true,
@@ -328,18 +345,18 @@ export default {
         }
       })
         .then(response => {
-          this.verifiedPredictions = response.data.predictions || []
+          this.verifiedPredictions = response.data.predictions || [];
         })
         .catch(error => {
-          console.error('Error fetching verified predictions:', error)
+          console.error('Error fetching verified predictions:', error);
         })
         .finally(() => {
-          this.loading.verifiedPredictions = false
-        })
+          this.loading.verifiedPredictions = false;
+        });
     },
 
     fetchModelPerformance: function () {
-      this.loading.modelPerformance = true
+      this.loading.modelPerformance = true;
       return api.get('/models/performance', {
         params: {
           top_n: 5,
@@ -347,68 +364,80 @@ export default {
         }
       })
         .then(response => {
-          this.topModels = response.data || []
-          this.stats.activeModels = this.topModels.length
+          this.topModels = response.data || [];
+          this.stats.activeModels = this.topModels.length;
         })
         .catch(error => {
-          console.error('Error fetching model performance:', error)
+          console.error('Error fetching model performance:', error);
         })
         .finally(() => {
-          this.loading.modelPerformance = false
-        })
-    }, updateLastRefreshTime: function () {
-      const now = new Date()
-      this.lastUpdateTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          this.loading.modelPerformance = false;
+        });
+    },
+
+    updateLastRefreshTime: function () {
+      const now = new Date();
+      this.lastUpdateTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     },
 
     refreshAccuracyTrend: function () {
-      this.fetchAccuracyTrend()
+      this.fetchAccuracyTrend();
     },
 
     refreshDirectionStats: function () {
-      this.loading.directionStats = true
+      this.loading.directionStats = true;
       this.fetchPredictionStats()
         .finally(() => {
-          this.loading.directionStats = false
-        })
+          this.loading.directionStats = false;
+        });
     },
 
     refreshTopPredictions: function () {
-      this.fetchTopPredictions()
+      this.fetchTopPredictions();
     },
 
     refreshVerifiedPredictions: function () {
-      this.fetchVerifiedPredictions()
+      this.fetchVerifiedPredictions();
     },
 
     refreshModelPerformance: function () {
-      this.fetchModelPerformance()
+      this.fetchModelPerformance();
     },
 
     setAccuracyPeriod: function (period) {
-      this.accuracyPeriod = period
-      this.fetchAccuracyTrend()
+      this.accuracyPeriod = period;
+      this.fetchAccuracyTrend();
     },
 
     navigateTo: function (routeName) {
-      this.$router.push({ name: routeName })
+      this.$router.push({ name: routeName });
     },
 
     loadAllData: function () {
+      // Set initial loading states
+      this.loading.systemStatus = true;
+      this.loading.directionStats = true;
+      this.loading.accuracyTrend = true;
+      this.loading.topPredictions = true;
+      this.loading.verifiedPredictions = true;
+      this.loading.modelPerformance = true;
+
       // Load all data in parallel
       return Promise.all([
         this.fetchSystemStatus(),
-        this.fetchPredictionStats(),
+        this.fetchPredictionStats().finally(() => {
+          this.loading.directionStats = false;
+        }),
         this.fetchAccuracyTrend(),
         this.fetchTopPredictions(),
         this.fetchVerifiedPredictions(),
         this.fetchModelPerformance()
-      ])
+      ]);
     }
   },
 
   mounted: function () {
-    this.loadAllData()
+    this.loadAllData();
   }
 }
 </script>

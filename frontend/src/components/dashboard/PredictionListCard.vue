@@ -1,64 +1,38 @@
 <template>
   <CardContainer :title="title" :loading="loading" :full-height="true" :no-padding="true" class="min-h-[350px]">
     <template #actions>
-      <v-btn size="small" variant="text" @click="$emit('refresh')">
-        <v-icon>mdi-refresh</v-icon>
-      </v-btn>
-      <v-btn size="small" variant="text" @click="$emit('view-all')">
-        <v-icon>mdi-arrow-right</v-icon>
-      </v-btn>
+      <v-btn size="small" variant="text" @click="$emit('refresh')"><v-icon>mdi-refresh</v-icon></v-btn>
+      <v-btn size="small" variant="text" @click="$emit('view-all')"><v-icon>mdi-arrow-right</v-icon></v-btn>
     </template>
 
     <div class="prediction-list">
-      <v-list class="px-0">
-        <v-list-item v-for="(prediction, i) in predictions" :key="i" :class="i % 2 === 0 ? 'bg-gray-50' : ''">
-          <div class="flex w-full items-center">
-            <div class="prediction-symbol font-medium">{{ prediction.trading_symbol }}</div>
-            <div :class="['prediction-direction ml-auto', prediction.direction_prediction === 'UP' ? 'text-success' : 'text-error']">
-              <v-icon size="small">{{ prediction.direction_prediction === 'UP' ? 'mdi-arrow-up' : 'mdi-arrow-down' }}</v-icon>
-              {{ prediction.direction_prediction }}
-            </div>
-            <div class="prediction-confidence ml-4">
-              <v-progress-linear :model-value="prediction.strong_move_confidence * 100" height="8" rounded :color="prediction.direction_prediction === 'UP' ? 'success' : 'error'"></v-progress-linear>
-              <div class="text-xs text-right mt-1">{{ (prediction.strong_move_confidence * 100).toFixed(0) }}%</div>
-            </div>
+      <div v-if="predictions.length === 0" class="empty-state">{{ emptyMessage }}</div>
+      <div v-else class="predictions-container">
+        <div v-for="(prediction, i) in predictions" :key="i" class="prediction-item">
+          <div class="symbol">{{ prediction.trading_symbol }}</div>
+          <div :class="['direction', prediction.direction_prediction === 'UP' ? 'up' : 'down']">
+            <v-icon size="small">{{ prediction.direction_prediction === 'UP' ? 'mdi-arrow-up-bold' : 'mdi-arrow-down-bold' }}</v-icon>
           </div>
-        </v-list-item>
-        <v-list-item v-if="predictions.length === 0" class="text-center text-gray-500">
-          {{ emptyMessage }}
-        </v-list-item>
-      </v-list>
+          <div class="confidence">
+            <span class="value">{{ (prediction.strong_move_confidence * 100).toFixed(0) }}%</span>
+            <v-progress-linear :model-value="prediction.strong_move_confidence * 100" height="6" rounded :color="prediction.direction_prediction === 'UP' ? 'success' : 'error'"></v-progress-linear>
+          </div>
+        </div>
+      </div>
     </div>
   </CardContainer>
 </template>
-
 <script>
 import CardContainer from '@/components/common/CardContainer.vue'
 
 export default {
   name: 'PredictionListCard',
-  components: {
-    CardContainer
-  },
+  components: { CardContainer },
   props: {
-    title: {
-      type: String,
-      required: true
-    },
-    predictions: {
-      type: Array,
-      default: function () {
-        return []
-      }
-    },
-    loading: {
-      type: Boolean,
-      default: false
-    },
-    emptyMessage: {
-      type: String,
-      default: 'No predictions available'
-    }
+    title: { type: String, required: true },
+    predictions: { type: Array, default: () => [] },
+    loading: { type: Boolean, default: false },
+    emptyMessage: { type: String, default: 'No predictions available' }
   },
   emits: ['refresh', 'view-all']
 }
@@ -66,18 +40,42 @@ export default {
 
 <style lang="postcss" scoped>
 .prediction-list {
-  @apply max-h-[280px] overflow-y-auto;
+  @apply max-h-[300px] overflow-y-auto;
 }
 
-.prediction-symbol {
-  @apply w-1/4;
+.empty-state {
+  @apply flex items-center justify-center h-64 text-gray-500;
 }
 
-.prediction-direction {
-  @apply flex items-center;
+.predictions-container {
+  @apply divide-y divide-gray-100;
 }
 
-.prediction-confidence {
-  @apply w-1/3;
+.prediction-item {
+  @apply flex items-center px-4 py-3 hover:bg-gray-50 transition-colors duration-150;
+}
+
+.symbol {
+  @apply w-24 font-semibold text-primary-dark text-sm tracking-wide pl-2 py-1;
+}
+
+.direction {
+  @apply flex items-center justify-center w-8 h-8 rounded-full mx-4;
+}
+
+.direction.up {
+  @apply bg-success bg-opacity-10 text-success;
+}
+
+.direction.down {
+  @apply bg-error bg-opacity-10 text-error;
+}
+
+.confidence {
+  @apply flex-1;
+}
+
+.value {
+  @apply text-xs font-medium float-right mb-1;
 }
 </style>
