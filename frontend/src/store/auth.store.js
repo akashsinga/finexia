@@ -27,7 +27,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
 
       try {
-        const response = await api.post('/auth/token', { username, password })
+        const response = await api.post('/auth/token', { username, password }, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
 
         this.token = response.data.access_token
         this.user = response.data.user
@@ -54,11 +54,16 @@ export const useAuthStore = defineStore('auth', {
 
     verifyToken: async function () {
       try {
-        await api.get('/auth/verify')
-        return true
+        const response = await api.get('/auth/verify');
+        // Update user data if needed
+        if (response.data.user) {
+          this.user = response.data.user;
+          localStorage.setItem('user', JSON.stringify(this.user));
+        }
+        return true;
       } catch (error) {
-        this.logout()
-        return false
+        this.logout();
+        return false;
       }
     }
   }

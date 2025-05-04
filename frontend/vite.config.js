@@ -9,6 +9,9 @@ export default defineConfig({
     vue(),
     vuetify({ autoImport: true })
   ],
+  server: {
+    port: 3000
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
