@@ -13,7 +13,7 @@
     <!-- Charts & Predictions Row -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
       <!-- Prediction Accuracy Trend -->
-      <LineChartCard title="Prediction Accuracy Trend" :chart-data="accuracyTrendData" :chart-options="accuracyChartOptions" :loading="loading.accuracyTrend" :periods="timePeriods" @refresh="refreshAccuracyTrend" @period-change="setAccuracyPeriod" />
+      <LineChartCard title="Prediction Accuracy Trend" :chart-data="accuracyTrendData" :chart-options="accuracyChartOptions" :isPercentage="true" :loading="loading.accuracyTrend" :periods="timePeriods" @refresh="refreshAccuracyTrend" @period-change="setAccuracyPeriod" />
 
       <!-- Direction Predictions -->
       <DirectionPredictionsCard :direction-stats="directionStats" :loading="loading.directionStats" @refresh="refreshDirectionStats" />

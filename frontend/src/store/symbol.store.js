@@ -47,9 +47,7 @@ export const useSymbolStore = defineStore('symbol', {
       this.error = null;
 
       try {
-        const response = await api.get(`/symbols/lookup/${tradingSymbol}`, {
-          params: { exchange }
-        });
+        const response = await api.get(`/symbols/lookup/${tradingSymbol}`, { params: { exchange } });
         this.selectedSymbol = response.data;
         return this.selectedSymbol;
       } catch (error) {

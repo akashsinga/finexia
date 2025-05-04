@@ -29,18 +29,24 @@ export default {
       default: function () {
         return {}
       }
+    },
+    isPercentage: {
+      type: Boolean,
+      default: false
     }
   },
   computed: {
-    chartOption: function () {
-      // Convert Chart.js format to ECharts format
+    chartOption() {
       const dataset = this.chartData.datasets[0]
 
       const defaultOptions = {
         tooltip: {
           trigger: 'axis',
-          formatter: function (params) {
-            return `${params[0].name}: ${(params[0].value * 100).toFixed(1)}%`
+          formatter: (params) => {
+            const value = params[0].value
+            return this.isPercentage
+              ? `${params[0].name}: ${(value * 100).toFixed(1)}%`
+              : `${params[0].name}: ₹${value.toFixed(2)}`
           }
         },
         textStyle: {
@@ -59,10 +65,11 @@ export default {
         },
         yAxis: {
           type: 'value',
-          min: 0,
-          max: 1,
+          min: this.isPercentage ? 0 : 'dataMin',
+          max: this.isPercentage ? 1 : 'dataMax',
           axisLabel: {
-            formatter: '{value * 100}%'
+            formatter: (value) =>
+              this.isPercentage ? `${(value * 100).toFixed(0)}%` : `₹${value.toFixed(0)}`
           }
         },
         series: [
@@ -88,24 +95,23 @@ export default {
         ]
       }
 
-      // Fix for the axis label formatter
-      const mergedOptions = {
+      // Merge with external options
+      return {
         ...defaultOptions,
         ...this.options,
         yAxis: {
           ...defaultOptions.yAxis,
           ...(this.options.yAxis || {}),
           axisLabel: {
-            ...(defaultOptions.yAxis.axisLabel || {}),
-            ...(this.options.yAxis?.axisLabel || {}),
-            formatter: function (value) {
-              return (value * 100) + '%'
-            }
+            ...defaultOptions.yAxis.axisLabel,
+            ...(this.options.yAxis?.axisLabel || {})
           }
+        },
+        tooltip: {
+          ...defaultOptions.tooltip,
+          ...(this.options.tooltip || {})
         }
       }
-
-      return mergedOptions
     }
   }
 }

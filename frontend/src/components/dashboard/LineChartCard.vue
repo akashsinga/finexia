@@ -19,7 +19,7 @@
     </template>
 
     <div class="h-[280px]">
-      <LineChart :chart-data="chartData" :options="mergedOptions" />
+      <LineChart :chart-data="chartData" :isPercentage="isPercentage" :options="mergedOptions" />
     </div>
   </CardContainer>
 </template>
@@ -58,6 +58,10 @@ export default {
       default: function () {
         return []
       }
+    },
+    isPercentage: {
+      type: Boolean,
+      default: false
     }
   },
   computed: {
