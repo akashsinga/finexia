@@ -16,25 +16,7 @@
       <LineChartCard title="Prediction Accuracy Trend" :chart-data="accuracyTrendData" :chart-options="accuracyChartOptions" :loading="loading.accuracyTrend" :periods="timePeriods" @refresh="refreshAccuracyTrend" @period-change="setAccuracyPeriod" />
 
       <!-- Direction Predictions -->
-      <DoughnutChartCard title="Direction Predictions" :chart-data="directionData" :chart-options="directionChartOptions" :loading="loading.directionStats" @refresh="refreshDirectionStats">
-        <template #chart-details>
-          <div v-if="directionStats.upPredictions === 0 && directionStats.downPredictions === 0" class="text-center text-gray-500 py-4">
-            No direction prediction data available
-          </div>
-          <div v-else class="flex justify-center gap-8">
-            <div class="text-center">
-              <div class="text-sm text-gray-500">UP Predictions</div>
-              <div class="text-xl font-semibold text-success">{{ directionStats.upPredictions || 0 }}</div>
-              <div class="text-xs">{{ directionStats.upAccuracy ? (directionStats.upAccuracy * 100).toFixed(1) + '%' : 'N/A' }} Accuracy</div>
-            </div>
-            <div class="text-center">
-              <div class="text-sm text-gray-500">DOWN Predictions</div>
-              <div class="text-xl font-semibold text-error">{{ directionStats.downPredictions || 0 }}</div>
-              <div class="text-xs">{{ directionStats.downAccuracy ? (directionStats.downAccuracy * 100).toFixed(1) + '%' : 'N/A' }} Accuracy</div>
-            </div>
-          </div>
-        </template>
-      </DoughnutChartCard>
+      <DirectionPredictionsCard :direction-stats="directionStats" :loading="loading.directionStats" @refresh="refreshDirectionStats" />
 
       <!-- Top Predictions -->
       <PredictionListCard title="High Confidence Predictions" :predictions="topPredictions" :loading="loading.topPredictions" empty-message="No high confidence predictions available" @refresh="refreshTopPredictions" @view-all="navigateTo('Predictions')" />
@@ -84,7 +66,7 @@ import { useModelStore } from '@/store/model.store'
 // Import components
 import StatCard from '@/components/dashboard/StatCard.vue'
 import LineChartCard from '@/components/dashboard/LineChartCard.vue'
-import DoughnutChartCard from '@/components/dashboard/DoughnutChartCard.vue'
+import DirectionPredictionsCard from '@/components/dashboard/DirectionPredictionsCard.vue';
 import PredictionListCard from '@/components/dashboard/PredictionListCard.vue'
 import DataTableCard from '@/components/dashboard/DataTableCard.vue'
 
@@ -92,7 +74,7 @@ export default {
   components: {
     StatCard,
     LineChartCard,
-    DoughnutChartCard,
+    DirectionPredictionsCard,
     PredictionListCard,
     DataTableCard
   },
