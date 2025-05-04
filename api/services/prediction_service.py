@@ -7,7 +7,7 @@ from db.models.prediction_results import PredictionResult
 from db.models.symbol import Symbol
 from core.predict.daily_predictor import predict_for_one_symbol
 from core.train.daily_trainer import train_models_for_one_symbol
-from api.models.prediction import PredictionFilter, PredictionResponse
+from api.models.prediction import PredictionFilter, PredictionResponse, DirectionEnum, PredictionStats
 import asyncio
 from api.websockets.manager import connection_manager
 
@@ -20,6 +20,12 @@ def get_latest_prediction(db: Session, symbol: str) -> Optional[PredictionRespon
         return None
 
     return prediction
+
+
+def get_prediction_summary_symbol(db: Session, symbol: str) -> PredictionStats:
+    """Get the prediction summary per symbol"""
+    prediction_summary = get_verified_prediction_stats(db, symbol=symbol)
+    return prediction_summary
 
 
 def get_predictions_by_date(db: Session, filters: PredictionFilter, skip: int = 0, limit: int = 100) -> List[PredictionResponse]:
@@ -95,10 +101,13 @@ def refresh_prediction(db: Session, symbol: str, force_retrain: bool = False) ->
     return prediction
 
 
-def get_verified_prediction_stats(db: Session, start_date: Optional[date] = None, end_date: Optional[date] = None) -> Dict[str, Any]:
+def get_verified_prediction_stats(db: Session, symbol: str = None, start_date: Optional[date] = None, end_date: Optional[date] = None) -> Dict[str, Any]:
     """Get statistics about prediction accuracy"""
     # Build query
-    query = db.query(PredictionResult)
+    if symbol:
+        query = db.query(PredictionResult).filter(PredictionResult.trading_symbol == symbol)
+    else:
+        query = db.query(PredictionResult)
 
     # Apply date filters if provided
     if start_date:
@@ -108,8 +117,8 @@ def get_verified_prediction_stats(db: Session, start_date: Optional[date] = None
         query = query.filter(PredictionResult.date <= end_date)
 
     # Only include predictions that have been verified
-    query = query.filter(PredictionResult.verified.is_not(None))
-
+    # query = query.filter(PredictionResult.verified.is_not(False))
+    
     # Execute query
     predictions = query.all()
 
@@ -130,4 +139,4 @@ def get_verified_prediction_stats(db: Session, start_date: Optional[date] = None
     days_to_fulfill = [p.days_to_fulfill for p in predictions if p.verified and p.days_to_fulfill]
     avg_days = sum(days_to_fulfill) / len(days_to_fulfill) if days_to_fulfill else None
 
-    return {"total_predictions": total_count, "verified_predictions": verified_count, "accuracy": verified_count / total_count if total_count > 0 else 0.0, "up_predictions": up_count, "down_predictions": down_count, "direction_accuracy": direction_correct / len(direction_predictions) if direction_predictions else None, "avg_days_to_fulfill": avg_days}
+    return {"totalPredictions": total_count, "verifiedPredictions": verified_count, "accuracy": verified_count / total_count if total_count > 0 else 0.0, "upPredictions": up_count, "downPredictions": down_count, "directionAccuracy": direction_correct / len(direction_predictions) if direction_predictions else None, "avgDaysToFullfill": avg_days}

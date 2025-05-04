@@ -34,7 +34,7 @@ export const usePredictionStore = defineStore('prediction', {
   }),
 
   actions: {
-    async fetchPredictionStats() {
+    fetchPredictionStats: async function () {
       this.loading.stats = true;
       try {
         const response = await api.get('/predictions/status/accuracy');
@@ -56,7 +56,23 @@ export const usePredictionStore = defineStore('prediction', {
       }
     },
 
-    async fetchTopPredictions(confidence = 0.7, limit = 5) {
+    fetchPredictionStatsBySymbol: async function (symbol) {
+      this.loading.stats = true
+      try {
+        const response = await api.get(`/predictions/summary/${symbol}`);
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching prediction stats:', error);
+        throw error;
+      } finally {
+        this.loading.stats = false;
+      }
+    },
+
+    fetchPredictionsBySymbol: async function (symbol) {
+    },
+
+    fetchTopPredictions: async function (confidence = 0.7, limit = 5) {
       this.loading.topPredictions = true;
       try {
         // Added fo_eligible=true parameter to only get eligible symbols
@@ -73,7 +89,7 @@ export const usePredictionStore = defineStore('prediction', {
       }
     },
 
-    async fetchVerifiedPredictions(limit = 10) {
+    fetchVerifiedPredictions: async function (limit = 10) {
       this.loading.verifiedPredictions = true;
       try {
         const response = await api.get('/predictions', {
@@ -89,7 +105,7 @@ export const usePredictionStore = defineStore('prediction', {
       }
     },
 
-    async fetchAccuracyTrend(period = '30d') {
+    fetchAccuracyTrend: async function (period = '30d') {
       this.loading.accuracyTrend = true;
       try {
         // Simulating an API call with placeholder data

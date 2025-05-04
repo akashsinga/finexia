@@ -5,10 +5,10 @@ from typing import Optional
 from datetime import date
 from sqlalchemy.orm import Session
 
-from api.models.prediction import PredictionResponse, PredictionList, PredictionFilter, RefreshPredictionRequest
+from api.models.prediction import PredictionResponse, PredictionList, PredictionFilter, RefreshPredictionRequest, PredictionStats
 from api.dependencies.db import get_db
 from api.dependencies.auth import get_current_user
-from api.services.prediction_service import get_latest_prediction, get_predictions_by_date, refresh_prediction, get_verified_prediction_stats
+from api.services.prediction_service import get_latest_prediction, get_predictions_by_date, refresh_prediction, get_verified_prediction_stats, get_prediction_summary_symbol
 
 router = APIRouter()
 
@@ -20,6 +20,15 @@ async def get_prediction_for_symbol(symbol: str = Path(..., description="Trading
     if not prediction:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No prediction found for {symbol}")
     return prediction
+
+
+@router.get("/summary/{symbol}", response_model=dict)
+async def get_prediction_summary_for_symbol(symbol: str = Path(..., description="Trading Symbol"), db: Session = Depends(get_db)):
+    """Fetches prediction summary for specific symbol"""
+    prediction_summary = get_prediction_summary_symbol(db, symbol)
+    if not prediction_summary:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No prediction summary found for {symbol}")
+    return prediction_summary
 
 
 @router.get("", response_model=PredictionList)

@@ -82,7 +82,7 @@
               </div>
 
               <!-- Prediction Summary Card -->
-              <!-- <div class="overview-card prediction-summary-card">
+              <div class="overview-card prediction-summary-card">
                 <div class="card-header">
                   <h3 class="card-title">Prediction Summary</h3>
                   <button class="refresh-btn">
@@ -138,7 +138,7 @@
                     <v-icon size="small">mdi-arrow-right</v-icon>
                   </button>
                 </div>
-              </div> -->
+              </div>
 
               <!-- Latest EOD Data Card -->
               <!-- <div class="overview-card eod-card">
@@ -367,10 +367,10 @@ export default {
         console.error('Error fetching symbol data:', error);
       }
       this.priceChartData = {
-        labels: dates,
+        labels: dates.reverse(),
         datasets: [{
           label: 'Price',
-          data,
+          data: data.reverse(),
           borderColor: '#1E3A8A',
           backgroundColor: 'rgba(30, 58, 138, 0.1)',
           tension: 0.3,
@@ -378,8 +378,13 @@ export default {
         }]
       };
     },
-    async fetchPredictions() {
-      // In a real implementation, this would fetch prediction data for the symbol
+    fetchPredictionSummary: async function () {
+      try {
+        const predictionSummary = await this.predictionStore.fetchPredictionStatsBySymbol(this.$route.params.symbol)
+        this.predictionStats = predictionSummary
+      } catch (error) {
+        console.error('Error fetching symbol data:', error);
+      }
     },
     getDateRange: function () {
       const to_date = new Date()
@@ -444,7 +449,8 @@ export default {
   },
   mounted() {
     this.fetchSymbolData();
-    this.fetchHistoricalData()
+    this.fetchHistoricalData();
+    this.fetchPredictionSummary()
   }
 };
 </script>
