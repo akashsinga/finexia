@@ -52,7 +52,7 @@
           <td>{{ (model.precision * 100).toFixed(1) }}%</td>
           <td>{{ (model.recall * 100).toFixed(1) }}%</td>
           <td>{{ (model.f1_score * 100).toFixed(1) }}%</td>
-          <td>{{ $filters.formatDate(model.evaluation_date, 'MMM D') }}</td>
+          <td>{{ $filters.formatDate(model.evaluation_date, 'MMM D YY') }}</td>
         </tr>
       </DataTableCard>
     </div>
