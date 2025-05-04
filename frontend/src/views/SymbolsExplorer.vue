@@ -1,222 +1,249 @@
 <template>
   <div class="symbols-explorer">
-    <!-- Header with Search and Filters Bar -->
-    <div class="explorer-header-container">
-      <div class="explorer-header">
+    <!-- Header with search and filters -->
+    <div class="explorer-header">
+      <div class="header-container">
         <div class="header-left">
           <h1 class="page-title">Symbols Explorer</h1>
           <div class="header-stats">
-            <div class="stat-pill">
-              <span>{{ filteredSymbols.length }}</span> symbols
+            <div class="stat-badge">
+              <span class="stat-count">{{ filteredSymbols.length }}</span>
+              <span class="stat-label">symbols</span>
             </div>
-            <div v-if="activeFilter === 'fo'" class="stat-pill accent">
+            <div v-if="activeFilter === 'fo'" class="fo-badge">
               <v-icon size="x-small">mdi-filter</v-icon>
               <span>F&O only</span>
             </div>
           </div>
         </div>
-        <div class="header-actions">
-          <v-btn color="primary" variant="tonal" size="small" prepend-icon="mdi-refresh" @click="refreshSymbols" :loading="symbolStore.loading" :disabled="symbolStore.loading">
-            Refresh
-          </v-btn>
-        </div>
-      </div>
 
-      <!-- Search & Filter Bar -->
-      <div class="search-filter-bar">
-        <div class="search-container">
-          <v-text-field v-model="searchQuery" placeholder="Search symbols or companies..." variant="outlined" density="compact" hide-details class="search-input" prepend-inner-icon="mdi-magnify" @update:model-value="debouncedSearch" clearable>
-            <template #append-inner>
-              <v-fade-transition leave-absolute>
-                <v-progress-circular v-if="symbolStore.loading" indeterminate color="primary" size="20"></v-progress-circular>
-              </v-fade-transition>
-            </template>
-          </v-text-field>
-        </div>
-        <div class="filter-container">
-          <v-chip-group v-model="activeFilter" mandatory selected-class="filter-selected">
-            <v-chip value="all" filter variant="elevated" size="small">All Symbols</v-chip>
-            <v-chip value="fo" filter variant="elevated" size="small">F&O Eligible</v-chip>
-          </v-chip-group>
+        <div class="search-area">
+          <div class="search-field">
+            <v-text-field v-model="searchQuery" placeholder="Search symbols or companies..." variant="outlined" density="compact" hide-details prepend-inner-icon="mdi-magnify" @update:model-value="debouncedSearch" clearable>
+              <template #append-inner>
+                <v-fade-transition leave-absolute>
+                  <v-progress-circular v-if="symbolStore.loading" indeterminate color="primary" size="20"></v-progress-circular>
+                </v-fade-transition>
+              </template>
+            </v-text-field>
+          </div>
+
+          <div class="filter-actions">
+            <v-chip-group v-model="activeFilter" mandatory selected-class="filter-selected">
+              <v-chip value="all" filter variant="elevated" size="small" class="filter-chip">All</v-chip>
+              <v-chip value="fo" filter variant="elevated" size="small" class="filter-chip">F&O</v-chip>
+            </v-chip-group>
+
+            <v-btn color="primary" variant="tonal" prepend-icon="mdi-refresh" @click="refreshSymbols" :loading="symbolStore.loading" :disabled="symbolStore.loading" class="refresh-btn">
+              Refresh
+            </v-btn>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Main Content: Symbol Cards Grid -->
-    <div v-if="!symbolStore.loading || filteredSymbols.length > 0" class="symbols-grid-container">
+    <!-- Symbol Cards Grid -->
+    <div v-if="!symbolStore.loading || filteredSymbols.length > 0" class="grid-container">
       <TransitionGroup name="symbols-list" tag="div" class="symbols-grid">
         <div v-for="symbol in paginatedSymbols" :key="symbol.trading_symbol" class="symbol-card" @click="viewSymbolDetails(symbol)">
-          <div class="symbol-card-header">
-            <div class="symbol-badge" :class="getSymbolBadgeClass(symbol.instrument_type)">
-              {{ symbol.trading_symbol.charAt(0) }}
-            </div>
-            <div class="symbol-info">
-              <div class="symbol-name">{{ symbol.trading_symbol }}</div>
-              <div class="symbol-exchange">{{ symbol.exchange }}</div>
-            </div>
-            <div v-if="symbol.fo_eligible" class="fo-badge">F&O</div>
-          </div>
 
-          <div class="symbol-card-body">
-            <div class="company-name">{{ symbol.name }}</div>
-            <div class="symbol-details">
-              <div class="detail-item">
-                <div class="detail-label">Type</div>
-                <v-chip size="x-small" :color="getInstrumentTypeColor(symbol.instrument_type)" text-color="white">
+          <!-- Colored stripe for instrument type -->
+          <div class="card-stripe" :class="getSymbolBadgeClass(symbol.instrument_type)"></div>
+
+          <div class="card-content">
+            <!-- Header with symbol and type -->
+            <div class="card-header">
+              <div class="symbol-title">
+                <h3 class="symbol-name">{{ symbol.trading_symbol }}</h3>
+                <div v-if="symbol.fo_eligible" class="fo-indicator">F&O</div>
+              </div>
+              <div class="type-badge">
+                <v-chip size="x-small" :color="getInstrumentTypeColor(symbol.instrument_type)" class="type-chip">
                   {{ symbol.instrument_type }}
                 </v-chip>
               </div>
+            </div>
+
+            <!-- Company name -->
+            <div class="company-name">{{ symbol.name }}</div>
+
+            <!-- Symbol details -->
+            <div class="details-container">
               <div class="detail-item">
-                <div class="detail-label">Lot Size</div>
-                <div class="detail-value">{{ symbol.lot_size || 'N/A' }}</div>
+                <v-icon size="x-small" class="detail-icon">mdi-cube-outline</v-icon>
+                <span class="detail-label">Lot:</span>
+                <span class="detail-value">{{ symbol.lot_size || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <v-icon size="x-small" class="detail-icon">mdi-bank</v-icon>
+                <span class="detail-label">Exchange:</span>
+                <span class="detail-value">{{ symbol.exchange }}</span>
               </div>
             </div>
-          </div>
 
-          <div class="symbol-card-footer">
-            <v-btn size="small" variant="text" color="primary" @click.stop="viewPredictions(symbol)">
-              <v-icon size="small" class="mr-1">mdi-chart-line</v-icon>
-              Predictions
-            </v-btn>
-            <v-btn size="small" variant="text" @click.stop="viewSymbolDetails(symbol)">
-              <v-icon size="small">mdi-information-outline</v-icon>
-            </v-btn>
+            <!-- Card actions -->
+            <div class="card-actions">
+              <v-btn size="small" variant="flat" color="primary" class="view-btn" @click.stop="viewSymbolDetails(symbol)">
+                <v-icon size="small" class="mr-1">mdi-eye</v-icon>
+                View Details
+              </v-btn>
+              <v-btn size="small" icon variant="text" class="watchlist-btn" @click.stop="addToWatchlist(symbol)">
+                <v-icon size="small">mdi-star-outline</v-icon>
+              </v-btn>
+            </div>
           </div>
         </div>
       </TransitionGroup>
 
-      <!-- Empty State -->
+      <!-- Empty state when no symbols found -->
       <div v-if="filteredSymbols.length === 0 && !symbolStore.loading" class="empty-state">
-        <div class="empty-state-icon">
-          <v-icon size="64" color="grey-lighten-2">mdi-finance</v-icon>
+        <div class="empty-icon">
+          <v-icon size="64" color="primary">mdi-finance</v-icon>
         </div>
-        <h3>No symbols found</h3>
-        <p>Try adjusting your search criteria or filters</p>
+        <h3 class="empty-title">No symbols found</h3>
+        <p class="empty-message">Try adjusting your search criteria or filters</p>
         <v-btn variant="outlined" color="primary" @click="resetFilters">
           Reset Filters
         </v-btn>
       </div>
 
-      <!-- Loading Skeleton -->
+      <!-- Loading skeletons -->
       <div v-if="symbolStore.loading && filteredSymbols.length === 0" class="symbols-grid">
-        <div v-for="i in 9" :key="i" class="symbol-card skeleton">
-          <div class="symbol-card-header">
-            <div class="skeleton-badge"></div>
-            <div class="skeleton-info">
-              <div class="skeleton-line short"></div>
-              <div class="skeleton-line shorter"></div>
+        <div v-for="i in 12" :key="i" class="symbol-card is-skeleton">
+          <div class="card-stripe skeleton-stripe"></div>
+          <div class="card-content">
+            <div class="card-header skeleton-header">
+              <div class="skeleton-line w-2/5"></div>
+              <div class="skeleton-chip"></div>
             </div>
-          </div>
-          <div class="symbol-card-body">
-            <div class="skeleton-line"></div>
+            <div class="skeleton-line w-4/5"></div>
             <div class="skeleton-details">
-              <div class="skeleton-line short"></div>
-              <div class="skeleton-line short"></div>
+              <div class="skeleton-line w-2/5"></div>
+              <div class="skeleton-line w-2/5"></div>
             </div>
-          </div>
-          <div class="symbol-card-footer">
-            <div class="skeleton-button"></div>
-            <div class="skeleton-icon"></div>
+            <div class="skeleton-actions">
+              <div class="skeleton-button"></div>
+              <div class="skeleton-circle"></div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Pagination Controls (if needed) -->
-    <div v-if="filteredSymbols.length > 0" class="pagination-controls">
-      <v-pagination v-model="currentPage" :length="totalPages" :total-visible="7" :disabled="symbolStore.loading"></v-pagination>
+    <!-- Pagination controls -->
+    <div v-if="filteredSymbols.length > 0" class="pagination-wrapper">
+      <v-pagination v-model="currentPage" :length="totalPages" :total-visible="7" :disabled="symbolStore.loading" class="pagination"></v-pagination>
     </div>
 
-    <!-- Symbol Details Dialog -->
+    <!-- Enhanced Symbol Details Dialog -->
     <v-dialog v-model="showDetailsDialog" max-width="800">
-      <v-card v-if="symbolStore.selectedSymbol" class="symbol-detail-card">
-        <v-card-item>
-          <div class="symbol-detail-header">
-            <div class="symbol-detail-badge" :class="getSymbolBadgeClass(symbolStore.selectedSymbol.instrument_type)">
-              {{ symbolStore.selectedSymbol.trading_symbol.charAt(0) }}
-            </div>
-            <div class="symbol-detail-title">
-              <v-card-title class="symbol-detail-name">
-                {{ symbolStore.selectedSymbol.trading_symbol }}
-                <v-chip v-if="symbolStore.selectedSymbol.fo_eligible" size="small" color="primary" class="ml-2" variant="flat">
-                  F&O
-                </v-chip>
-              </v-card-title>
-              <v-card-subtitle>{{ symbolStore.selectedSymbol.name }}</v-card-subtitle>
-            </div>
-            <v-spacer></v-spacer>
-            <v-btn icon variant="text" @click="closeDetailsDialog">
-              <v-icon>mdi-close</v-icon>
-            </v-btn>
+      <div v-if="symbolStore.selectedSymbol" class="detail-dialog">
+        <div class="detail-stripe" :class="getSymbolBadgeClass(symbolStore.selectedSymbol.instrument_type)"></div>
+
+        <div class="dialog-header">
+          <div class="dialog-title-area">
+            <h2 class="dialog-title">{{ symbolStore.selectedSymbol.trading_symbol }}</h2>
+            <div v-if="symbolStore.selectedSymbol.fo_eligible" class="dialog-fo-badge">F&O</div>
+            <p class="dialog-subtitle">{{ symbolStore.selectedSymbol.name }}</p>
           </div>
-        </v-card-item>
+          <button class="dialog-close-btn" @click="closeDetailsDialog">
+            <v-icon>mdi-close</v-icon>
+          </button>
+        </div>
 
-        <v-divider></v-divider>
+        <div class="dialog-divider"></div>
 
-        <v-card-text>
-          <div class="symbol-detail-content">
-            <div class="symbol-detail-grid">
-              <div class="detail-grid-item">
-                <div class="detail-grid-label">Exchange</div>
-                <div class="detail-grid-value">{{ symbolStore.selectedSymbol.exchange }}</div>
+        <div class="dialog-content">
+          <div class="dialog-grid">
+            <div class="grid-item">
+              <div class="grid-icon"><v-icon size="small">mdi-bank</v-icon></div>
+              <div class="grid-info">
+                <div class="grid-label">Exchange</div>
+                <div class="grid-value">{{ symbolStore.selectedSymbol.exchange }}</div>
               </div>
-              <div class="detail-grid-item">
-                <div class="detail-grid-label">Security ID</div>
-                <div class="detail-grid-value">{{ symbolStore.selectedSymbol.security_id }}</div>
+            </div>
+            <div class="grid-item">
+              <div class="grid-icon"><v-icon size="small">mdi-identifier</v-icon></div>
+              <div class="grid-info">
+                <div class="grid-label">Security ID</div>
+                <div class="grid-value">{{ symbolStore.selectedSymbol.security_id }}</div>
               </div>
-              <div class="detail-grid-item">
-                <div class="detail-grid-label">Instrument Type</div>
-                <div class="detail-grid-value">
-                  <v-chip size="small" :color="getInstrumentTypeColor(symbolStore.selectedSymbol.instrument_type)">
+            </div>
+            <div class="grid-item">
+              <div class="grid-icon"><v-icon size="small">mdi-tag</v-icon></div>
+              <div class="grid-info">
+                <div class="grid-label">Instrument Type</div>
+                <div class="grid-value">
+                  <span class="type-pill" :class="getInstrumentPillClass(symbolStore.selectedSymbol.instrument_type)">
                     {{ symbolStore.selectedSymbol.instrument_type }}
-                  </v-chip>
+                  </span>
                 </div>
               </div>
-              <div class="detail-grid-item">
-                <div class="detail-grid-label">F&O Eligible</div>
-                <div class="detail-grid-value">
-                  <v-icon v-if="symbolStore.selectedSymbol.fo_eligible" color="success">mdi-check-circle</v-icon>
-                  <v-icon v-else color="grey-lighten-1">mdi-minus-circle</v-icon>
-                  <span class="ml-1">{{ symbolStore.selectedSymbol.fo_eligible ? 'Yes' : 'No' }}</span>
+            </div>
+            <div class="grid-item">
+              <div class="grid-icon"><v-icon size="small">mdi-certificate</v-icon></div>
+              <div class="grid-info">
+                <div class="grid-label">F&O Eligible</div>
+                <div class="grid-value">
+                  <div class="eligibility-indicator">
+                    <v-icon v-if="symbolStore.selectedSymbol.fo_eligible" size="small" color="success">mdi-check-circle</v-icon>
+                    <v-icon v-else size="small" color="grey-lighten-1">mdi-minus-circle</v-icon>
+                    <span>{{ symbolStore.selectedSymbol.fo_eligible ? 'Yes' : 'No' }}</span>
+                  </div>
                 </div>
               </div>
-              <div class="detail-grid-item">
-                <div class="detail-grid-label">Lot Size</div>
-                <div class="detail-grid-value">{{ symbolStore.selectedSymbol.lot_size || 'N/A' }}</div>
+            </div>
+            <div class="grid-item">
+              <div class="grid-icon"><v-icon size="small">mdi-cube-outline</v-icon></div>
+              <div class="grid-info">
+                <div class="grid-label">Lot Size</div>
+                <div class="grid-value">{{ symbolStore.selectedSymbol.lot_size || 'N/A' }}</div>
               </div>
-              <div class="detail-grid-item">
-                <div class="detail-grid-label">Segment</div>
-                <div class="detail-grid-value">{{ symbolStore.selectedSymbol.segment }}</div>
+            </div>
+            <div class="grid-item">
+              <div class="grid-icon"><v-icon size="small">mdi-segment</v-icon></div>
+              <div class="grid-info">
+                <div class="grid-label">Segment</div>
+                <div class="grid-value">{{ symbolStore.selectedSymbol.segment }}</div>
               </div>
-              <div class="detail-grid-item">
-                <div class="detail-grid-label">Status</div>
-                <div class="detail-grid-value">
-                  <v-chip size="small" :color="symbolStore.selectedSymbol.active ? 'success' : 'error'" text-color="white">
+            </div>
+            <div class="grid-item">
+              <div class="grid-icon"><v-icon size="small">mdi-checkbox-marked-circle</v-icon></div>
+              <div class="grid-info">
+                <div class="grid-label">Status</div>
+                <div class="grid-value">
+                  <span class="status-pill" :class="symbolStore.selectedSymbol.active ? 'status-active' : 'status-inactive'">
                     {{ symbolStore.selectedSymbol.active ? 'Active' : 'Inactive' }}
-                  </v-chip>
+                  </span>
                 </div>
               </div>
-              <div class="detail-grid-item">
-                <div class="detail-grid-label">Added On</div>
-                <div class="detail-grid-value">{{ formatDate(symbolStore.selectedSymbol.created_at) }}</div>
+            </div>
+            <div class="grid-item">
+              <div class="grid-icon"><v-icon size="small">mdi-calendar</v-icon></div>
+              <div class="grid-info">
+                <div class="grid-label">Added On</div>
+                <div class="grid-value">{{ formatDate(symbolStore.selectedSymbol.created_at) }}</div>
               </div>
             </div>
           </div>
-        </v-card-text>
+        </div>
 
-        <v-divider></v-divider>
+        <div class="dialog-divider"></div>
 
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="primary" variant="tonal" @click="closeDetailsDialog">
-            Close
-          </v-btn>
-          <v-btn color="primary" @click="viewPredictions(symbolStore.selectedSymbol)">
-            View Predictions
-            <v-icon class="ml-1">mdi-chart-line</v-icon>
-          </v-btn>
-        </v-card-actions>
-      </v-card>
+        <div class="dialog-actions">
+          <button class="dialog-btn dialog-btn-secondary" @click="closeDetailsDialog">
+            Cancel
+          </button>
+          <button class="dialog-btn dialog-btn-primary" @click="addToWatchlist(symbolStore.selectedSymbol)">
+            <v-icon class="mr-1" size="small">mdi-star-outline</v-icon>
+            Add to Watchlist
+          </button>
+          <button class="dialog-btn dialog-btn-primary" @click="$router.push(`/app/symbols/${symbolStore.selectedSymbol.trading_symbol}`); closeDetailsDialog();">
+            <v-icon class="mr-1" size="small">mdi-chart-line</v-icon>
+            Symbol Details
+          </button>
+        </div>
+      </div>
     </v-dialog>
   </div>
 </template>
@@ -298,11 +325,10 @@ export default {
       this.showDetailsDialog = false;
     },
 
-    viewPredictions(symbol) {
-      this.$router.push({
-        name: 'SymbolDetail',
-        params: { symbol: symbol.trading_symbol }
-      });
+    addToWatchlist(symbol) {
+      // Implementation for adding to watchlist
+      console.log('Added to watchlist:', symbol.trading_symbol);
+      // You can add implementation to add the symbol to a watchlist
     },
 
     getInstrumentTypeColor(type) {
@@ -323,6 +349,17 @@ export default {
         'OPT': 'badge-opt',
         'ETF': 'badge-etf',
         'INDEX': 'badge-index'
+      };
+      return classMap[type] || '';
+    },
+
+    getInstrumentPillClass(type) {
+      const classMap = {
+        'EQ': 'pill-eq',
+        'FUT': 'pill-fut',
+        'OPT': 'pill-opt',
+        'ETF': 'pill-etf',
+        'INDEX': 'pill-index'
       };
       return classMap[type] || '';
     },
@@ -357,17 +394,18 @@ export default {
 </script>
 
 <style lang="postcss" scoped>
+/* Common styles */
 .symbols-explorer {
   @apply w-full flex flex-col gap-6;
 }
 
-/* Header Styles */
-.explorer-header-container {
-  @apply sticky top-0 z-10 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-2;
+/* Header styles */
+.explorer-header {
+  @apply bg-white rounded-xl border border-gray-200 overflow-hidden;
 }
 
-.explorer-header {
-  @apply flex flex-wrap justify-between items-center p-4 gap-4;
+.header-container {
+  @apply p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4;
 }
 
 .header-left {
@@ -375,47 +413,59 @@ export default {
 }
 
 .page-title {
-  @apply text-2xl font-bold mb-1 text-gray-800;
+  @apply text-2xl font-bold text-gray-800 mb-2;
 }
 
 .header-stats {
   @apply flex gap-2;
 }
 
-.stat-pill {
-  @apply flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded-full text-xs font-medium text-gray-600;
+.stat-badge {
+  @apply inline-flex items-center px-3 py-1 bg-primary bg-opacity-5 rounded-full;
 }
 
-.stat-pill.accent {
-  @apply bg-primary bg-opacity-10 text-primary;
+.stat-count {
+  @apply text-sm font-semibold text-primary;
 }
 
-.header-actions {
+.stat-label {
+  @apply text-xs text-gray-600 ml-1;
+}
+
+.fo-badge {
+  @apply inline-flex items-center px-3 py-1 bg-primary bg-opacity-10 rounded-full;
+}
+
+.fo-badge span {
+  @apply text-xs text-primary ml-1;
+}
+
+.search-area {
+  @apply flex flex-col sm:flex-row items-stretch gap-3 w-full md:w-auto;
+}
+
+.search-field {
+  @apply flex-grow;
+}
+
+.filter-actions {
   @apply flex items-center gap-2;
 }
 
-.search-filter-bar {
-  @apply flex flex-col sm:flex-row items-center gap-4 px-4 py-3 border-t border-gray-200 bg-gray-50;
-}
-
-.search-container {
-  @apply w-full sm:w-80 flex-shrink-0;
-}
-
-.search-input {
-  @apply rounded-lg;
-}
-
-.filter-container {
-  @apply w-full flex-grow flex justify-start sm:justify-end items-center;
-}
-
 .filter-selected {
-  @apply bg-primary text-white;
+  @apply !bg-primary !text-white;
 }
 
-/* Grid Styles */
-.symbols-grid-container {
+.filter-chip {
+  @apply font-medium;
+}
+
+.refresh-btn {
+  @apply whitespace-nowrap;
+}
+
+/* Symbol grid styles */
+.grid-container {
   @apply relative min-h-[400px];
 }
 
@@ -424,15 +474,11 @@ export default {
 }
 
 .symbol-card {
-  @apply bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col transition-all duration-200 hover:shadow-md hover:border-primary hover:border-opacity-50 cursor-pointer;
+  @apply relative bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col transition-all duration-200 hover:border-primary hover:border-opacity-50 cursor-pointer;
 }
 
-.symbol-card-header {
-  @apply flex items-center gap-3 p-3 bg-gray-50 border-b border-gray-200;
-}
-
-.symbol-badge {
-  @apply w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg text-white bg-primary;
+.card-stripe {
+  @apply h-1 w-full;
 }
 
 .badge-eq {
@@ -455,151 +501,258 @@ export default {
   @apply bg-cyan-600;
 }
 
-.symbol-info {
-  @apply flex-grow;
+.card-content {
+  @apply p-4 flex flex-col h-full;
+}
+
+.card-header {
+  @apply flex justify-between items-center mb-3;
+}
+
+.symbol-title {
+  @apply flex items-center gap-2;
 }
 
 .symbol-name {
   @apply font-bold text-gray-800;
 }
 
-.symbol-exchange {
-  @apply text-xs text-gray-500;
+.fo-indicator {
+  @apply text-xs px-2 py-0.5 bg-primary bg-opacity-10 text-primary rounded font-medium;
 }
 
-.fo-badge {
-  @apply px-2 py-0.5 bg-primary bg-opacity-10 text-primary rounded text-xs font-medium;
+.type-badge {
+  @apply flex-shrink-0;
 }
 
-.symbol-card-body {
-  @apply p-3 flex-grow flex flex-col;
+.type-chip {
+  @apply text-white;
 }
 
 .company-name {
-  @apply text-sm mb-3 line-clamp-2 h-10;
+  @apply text-sm text-gray-600 mb-4 line-clamp-2;
 }
 
-.symbol-details {
-  @apply grid grid-cols-2 gap-2 mt-auto;
+.details-container {
+  @apply grid grid-cols-2 gap-2 mt-auto mb-3;
 }
 
 .detail-item {
-  @apply flex flex-col;
+  @apply flex items-center text-xs;
+}
+
+.detail-icon {
+  @apply text-gray-400 mr-1;
 }
 
 .detail-label {
-  @apply text-xs text-gray-500 mb-1;
+  @apply text-gray-500 mr-1;
 }
 
 .detail-value {
-  @apply text-sm font-medium;
+  @apply font-medium;
 }
 
-.symbol-card-footer {
-  @apply flex justify-between items-center p-2 border-t border-gray-200;
+.card-actions {
+  @apply flex justify-between items-center mt-auto pt-2 border-t border-gray-100;
 }
 
-/* Empty State */
+.view-btn {
+  @apply text-xs;
+}
+
+.watchlist-btn {
+  @apply text-gray-400 hover:text-primary;
+}
+
+/* Empty state */
 .empty-state {
-  @apply flex flex-col items-center justify-center py-12 gap-3 text-center;
+  @apply flex flex-col items-center justify-center py-16 gap-3 text-center;
 }
 
-.empty-state-icon {
-  @apply mb-2;
+.empty-icon {
+  @apply mb-2 opacity-50;
 }
 
-/* Pagination */
-.pagination-controls {
-  @apply flex justify-center my-6;
+.empty-title {
+  @apply text-lg font-medium text-gray-700;
 }
 
-/* Symbol Detail Dialog */
-.symbol-detail-card {
-  @apply rounded-xl overflow-hidden;
+.empty-message {
+  @apply text-sm text-gray-500 mb-2;
 }
 
-.symbol-detail-header {
-  @apply flex items-center gap-4;
-}
-
-.symbol-detail-badge {
-  @apply w-12 h-12 rounded-xl flex items-center justify-center font-bold text-xl text-white bg-primary;
-}
-
-.symbol-detail-title {
-  @apply flex flex-col justify-center;
-}
-
-.symbol-detail-name {
-  @apply flex items-center text-xl font-bold;
-}
-
-.symbol-detail-content {
-  @apply py-4;
-}
-
-.symbol-detail-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
-}
-
-.detail-grid-item {
-  @apply flex flex-col gap-1;
-}
-
-.detail-grid-label {
-  @apply text-sm text-gray-500;
-}
-
-.detail-grid-value {
-  @apply font-medium flex items-center;
-}
-
-/* Skeleton Loading */
-.skeleton {
+/* Skeleton loading */
+.is-skeleton {
   @apply animate-pulse;
 }
 
-.skeleton-badge {
-  @apply w-10 h-10 rounded-lg bg-gray-200;
+.skeleton-stripe {
+  @apply bg-gray-200;
 }
 
-.skeleton-info {
-  @apply flex-1 flex flex-col gap-2;
+.skeleton-header {
+  @apply flex justify-between mb-3;
 }
 
 .skeleton-line {
   @apply h-4 bg-gray-200 rounded;
 }
 
-.skeleton-line.short {
-  @apply w-2/3;
-}
-
-.skeleton-line.shorter {
-  @apply w-1/3;
+.skeleton-chip {
+  @apply h-4 w-16 bg-gray-200 rounded-full;
 }
 
 .skeleton-details {
-  @apply grid grid-cols-2 gap-2 mt-3;
+  @apply grid grid-cols-2 gap-2 my-4;
+}
+
+.skeleton-actions {
+  @apply flex justify-between items-center pt-2 border-t border-gray-100;
 }
 
 .skeleton-button {
-  @apply h-8 w-24 rounded bg-gray-200;
+  @apply h-8 w-24 bg-gray-200 rounded;
 }
 
-.skeleton-icon {
-  @apply h-8 w-8 rounded bg-gray-200;
+.skeleton-circle {
+  @apply h-8 w-8 bg-gray-200 rounded-full;
 }
 
-/* Transitions */
+/* Pagination */
+.pagination-wrapper {
+  @apply flex justify-center my-6;
+}
+
+/* Enhanced Detail dialog */
+.detail-dialog {
+  @apply relative bg-white rounded-xl overflow-hidden;
+}
+
+.detail-stripe {
+  @apply h-2 w-full;
+}
+
+.dialog-header {
+  @apply flex justify-between items-start p-6;
+}
+
+.dialog-title-area {
+  @apply flex flex-col;
+}
+
+.dialog-title {
+  @apply text-xl font-bold text-gray-800 flex items-center gap-2;
+}
+
+.dialog-fo-badge {
+  @apply inline-flex ml-2 text-xs px-2 py-0.5 bg-primary bg-opacity-10 text-primary rounded font-medium;
+}
+
+.dialog-subtitle {
+  @apply text-sm text-gray-600 mt-1;
+}
+
+.dialog-close-btn {
+  @apply p-1 rounded-full hover:bg-gray-100 text-gray-500 transition-colors;
+}
+
+.dialog-divider {
+  @apply h-px w-full bg-gray-200;
+}
+
+.dialog-content {
+  @apply p-6;
+}
+
+.dialog-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+.grid-item {
+  @apply flex items-start gap-3;
+}
+
+.grid-icon {
+  @apply mt-0.5 text-primary;
+}
+
+.grid-info {
+  @apply flex flex-col;
+}
+
+.grid-label {
+  @apply text-sm text-gray-500;
+}
+
+.grid-value {
+  @apply font-medium flex items-center;
+}
+
+.type-pill {
+  @apply px-2 py-0.5 rounded text-white text-xs font-medium;
+}
+
+.pill-eq {
+  @apply bg-blue-600;
+}
+
+.pill-fut {
+  @apply bg-purple-600;
+}
+
+.pill-opt {
+  @apply bg-orange-500;
+}
+
+.pill-etf {
+  @apply bg-green-600;
+}
+
+.pill-index {
+  @apply bg-cyan-600;
+}
+
+.eligibility-indicator {
+  @apply flex items-center gap-1;
+}
+
+.status-pill {
+  @apply px-2 py-0.5 rounded text-white text-xs font-medium;
+}
+
+.status-active {
+  @apply bg-green-500;
+}
+
+.status-inactive {
+  @apply bg-red-500;
+}
+
+.dialog-actions {
+  @apply flex flex-wrap justify-end gap-2 p-4 bg-gray-50;
+}
+
+.dialog-btn {
+  @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors;
+}
+
+.dialog-btn-secondary {
+  @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50;
+}
+
+.dialog-btn-primary {
+  @apply bg-primary text-white hover:bg-primary-dark;
+}
+
+/* Transition animations */
 .symbols-list-enter-active,
 .symbols-list-leave-active {
-  transition: all 0.3s ease;
+  @apply transition-all duration-300 ease-in-out;
 }
 
 .symbols-list-enter-from,
 .symbols-list-leave-to {
-  opacity: 0;
-  transform: translateY(10px);
+  @apply opacity-0 transform translate-y-4;
 }
 </style>
