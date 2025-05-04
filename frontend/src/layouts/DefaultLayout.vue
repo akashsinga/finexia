@@ -78,6 +78,7 @@ export default {
       currentTime: new Date(),
       navItems: [
         { title: 'Dashboard', icon: 'mdi-view-dashboard', pathName: 'Dashboard' },
+        { title: 'Pipeline', icon: 'mdi-ray-start-vertex-end', pathName: 'PipelineDashboard' },
         { title: 'Symbols', icon: 'mdi-chart-line', pathName: 'SymbolsExplorer' },
         { title: 'Predictions', icon: 'mdi-chart-bar', pathName: 'Predictions' },
         { title: 'Models', icon: 'mdi-brain', pathName: 'ModelPerformance' },

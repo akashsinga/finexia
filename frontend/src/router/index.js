@@ -7,6 +7,7 @@ import Login from '../layouts/LoginLayout.vue'
 
 // Import your view components
 import Dashboard from '../views/Dashboard.vue'
+import PipelineDashboard from '../views/PipelineDashboard.vue'
 import SymbolsExplorer from '../views/SymbolsExplorer.vue'
 import SymbolDetail from '../views/SymbolDetail.vue'
 import Predictions from '../views/Predictions.vue'
@@ -41,6 +42,12 @@ const routes = [
         name: 'Dashboard',
         component: Dashboard,
         meta: { requiresAuth: true, title: 'Dashboard | Finexia' }
+      },
+      {
+        path: 'pipeline',
+        name: 'PipelineDashboard',
+        component: PipelineDashboard,
+        meta: { requiresAuth: true, title: 'Pipeline Dashboard | Finexia' }
       },
       {
         path: 'symbols',
