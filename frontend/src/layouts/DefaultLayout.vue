@@ -1,59 +1,101 @@
 <template>
   <div class="app-container">
-    <div class="sidebar" :class="{ 'collapsed': collapsed }">
+    <div class="sidebar" :class="{ collapsed }">
+      <!-- Header -->
       <div class="sidebar-header">
         <div class="brand">
           <img src="@/assets/images/favicon.svg" class="brand-image" />
-          <div v-if="!collapsed" class="flex flex-col">
+          <div v-if="!collapsed" class="brand-text">
             <div class="brand-title">Finexia</div>
             <div class="brand-subtitle">Predictive Market Analytics</div>
           </div>
         </div>
       </div>
-      <div class="collapse-button">
-        <v-icon @click="collapsed = !collapsed">{{ collapsed ? 'mdi-chevron-right' : 'mdi-chevron-left' }}</v-icon>
-      </div>
-      <div class="sidebar-nav">
-        <div class="nav-list">
-          <div v-for="(item, i) in navItems" :key="i" class="nav-item" :class="{ 'active': $route.path.includes(item.to) }" @click="$router.push({ name: item.pathName })">
-            <div v-if="!collapsed" class="nav-status-indicator"></div>
-            <div class="nav-link">
-              <v-icon class="nav-link-icon">{{ item.icon }}</v-icon>
-              <div v-if="!collapsed" class="nav-link-text">{{ item.title }}</div>
-              <v-icon class="active-icon" v-if="!collapsed && $route.path.includes(item.to)">mdi-chevron-right</v-icon>
+
+      <!-- Collapse Button -->
+      <button class="collapse-button" @click="toggleSidebar" aria-label="Toggle sidebar">
+        <v-icon>{{ collapsed ? 'mdi-chevron-right' : 'mdi-chevron-left' }}</v-icon>
+      </button>
+
+      <!-- Sidebar Content -->
+      <div class="sidebar-content">
+        <!-- Navigation -->
+        <div class="sidebar-nav">
+          <div class="nav-list">
+            <div v-for="(item, i) in navItems" :key="i" class="nav-item" :class="{ active: $route.name === item.pathName }" @click="$router.push({ name: item.pathName })">
+              <div v-if="!collapsed" class="nav-status-indicator"></div>
+              <div class="nav-link">
+                <v-icon class="nav-link-icon">{{ item.icon }}</v-icon>
+                <div v-if="!collapsed" class="nav-link-text">{{ item.title }}</div>
+                <v-icon v-if="!collapsed && $route.name === item.pathName" class="active-icon">mdi-chevron-right</v-icon>
+              </div>
             </div>
           </div>
+        </div>
+
+        <!-- User Info with Logout Icon -->
+        <div v-if="authStore.isLoggedIn" class="user-account">
+          <div class="user-wrapper">
+            <div class="avatar">{{ authStore.userInitials }}</div>
+            <div class="user-info">
+              <div class="user-name">{{ authStore.username }}</div>
+              <div class="user-email">{{ authStore.user?.email || 'N/A' }}</div>
+            </div>
+          </div>
+          <v-icon class="logout-icon text-lg" @click.stop="logout">mdi-logout</v-icon>
         </div>
       </div>
     </div>
   </div>
 </template>
+
 <script>
+import { useAuthStore } from '@/store/auth.store'
+
 export default {
   data() {
     return {
       collapsed: false,
       navItems: [
-        { title: 'Dashboard', icon: 'mdi-view-dashboard', to: 'app/dashboard', pathName: 'Dashboard' },
-        { title: 'Symbols', icon: 'mdi-chart-line', to: 'app/symbols', pathName: 'SymbolsExplorer' },
-        { title: 'Predictions', icon: 'mdi-chart-bar', to: 'app/predictions', pathName: 'Predictions' },
-        { title: 'Models', icon: 'mdi-brain', to: 'app/models', pathName: 'ModelPerformance' },
-        { title: 'Settings', icon: 'mdi-cog', to: 'app/settings', pathName: 'Settings' },
+        { title: 'Dashboard', icon: 'mdi-view-dashboard', pathName: 'Dashboard' },
+        { title: 'Symbols', icon: 'mdi-chart-line', pathName: 'SymbolsExplorer' },
+        { title: 'Predictions', icon: 'mdi-chart-bar', pathName: 'Predictions' },
+        { title: 'Models', icon: 'mdi-brain', pathName: 'ModelPerformance' },
+        { title: 'Settings', icon: 'mdi-cog', pathName: 'Settings' }
       ]
+    }
+  },
+  computed: {
+    authStore() {
+      return useAuthStore()
+    }
+  },
+  methods: {
+    toggleSidebar() {
+      this.collapsed = !this.collapsed
+    },
+    logout() {
+      this.authStore.logout()
+      this.$router.push({ name: 'Login' })
     }
   }
 }
 </script>
+
 <style lang="postcss" scoped>
 .app-container {
   @apply flex min-h-screen;
 }
 
 .sidebar {
-  @apply fixed z-10 h-full transition-all duration-300 w-64 p-4 bg-white ring-1 ring-gray-300 shadow-md;
+  @apply fixed z-10 h-full transition-all duration-300 w-64 p-4 bg-white ring-1 ring-gray-300 shadow-md flex flex-col justify-between;
 
   .collapse-button {
-    @apply absolute top-1/2 -right-3 ring-1 ring-gray-300 bg-white rounded-full flex items-center justify-center shadow-md;
+    @apply absolute top-1/2 -right-3 w-6 h-6 ring-1 ring-gray-300 bg-white rounded-full flex items-center justify-center shadow-md;
+
+    .v-icon {
+      @apply text-xl;
+    }
   }
 
   .sidebar-header {
@@ -66,72 +108,108 @@ export default {
         @apply w-10 h-10;
       }
 
-      .brand-title {
-        @apply text-lg font-medium;
-      }
+      .brand-text {
+        @apply flex flex-col;
 
-      .brand-subtitle {
-        @apply text-xs;
+        .brand-title {
+          @apply text-lg font-medium;
+        }
+
+        .brand-subtitle {
+          @apply text-xs;
+        }
       }
     }
   }
 
-  .sidebar-nav {
-    @apply mt-4;
+  .sidebar-content {
+    @apply flex flex-col justify-between flex-grow;
 
-    .nav-list {
-      @apply flex flex-col space-y-3;
+    .sidebar-nav {
+      @apply mt-4;
 
-      .nav-item {
-        @apply flex relative cursor-pointer transition-all duration-300;
+      .nav-list {
+        @apply flex flex-col space-y-3;
 
-        .nav-status-indicator {
-          @apply w-1.5 absolute bg-transparent h-3/4 -left-4 top-1.5 rounded-r-full;
-        }
+        .nav-item {
+          @apply flex relative cursor-pointer transition-all duration-300;
 
-        .nav-link {
-          @apply flex items-center w-full px-2 py-2 space-x-3 relative rounded-lg;
-
-          .nav-link-icon {
-            @apply text-xl top-[1px];
-          }
-
-          .nav-link-text {
-            @apply text-sm;
-          }
-
-          .active-icon {
-            @apply text-xl absolute right-1;
-          }
-        }
-
-        &:hover {
-          .nav-link {
-            @apply bg-gray-100;
-
-            .nav-link-text {
-              @apply font-medium;
-            }
-          }
-        }
-
-        &.active {
           .nav-status-indicator {
-            @apply bg-primary;
+            @apply w-1.5 absolute bg-transparent h-3/4 -left-4 top-1.5 rounded-r-full;
           }
 
           .nav-link {
-            @apply bg-gray-100;
+            @apply flex items-center w-full px-2 py-2 space-x-3 relative rounded-lg;
 
             .nav-link-icon {
-              @apply text-primary;
+              @apply text-xl;
             }
 
             .nav-link-text {
-              @apply font-medium;
+              @apply text-sm;
+            }
+
+            .active-icon {
+              @apply text-xl absolute right-1;
+            }
+          }
+
+          &:hover {
+            .nav-link {
+              @apply bg-gray-100;
+
+              .nav-link-text {
+                @apply font-medium;
+              }
+            }
+          }
+
+          &.active {
+            .nav-status-indicator {
+              @apply bg-primary;
+            }
+
+            .nav-link {
+              @apply bg-gray-100;
+
+              .nav-link-icon {
+                @apply text-primary;
+              }
+
+              .nav-link-text {
+                @apply font-medium;
+              }
             }
           }
         }
+      }
+    }
+
+    .user-account {
+      @apply relative pt-3 border-t border-gray-300 flex justify-between items-center;
+
+      .user-wrapper {
+        @apply flex items-center space-x-3 pr-3 py-1;
+
+        .avatar {
+          @apply w-8 aspect-square min-w-[2] flex-shrink-0 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-base;
+        }
+
+        .user-info {
+          @apply flex flex-col;
+
+          .user-name {
+            @apply text-sm font-medium capitalize;
+          }
+
+          .user-email {
+            @apply text-xs text-gray-500 truncate max-w-[10rem];
+          }
+        }
+      }
+
+      .logout-icon {
+        @apply ml-auto text-gray-500 hover:text-red-500 cursor-pointer;
       }
     }
   }
@@ -143,10 +221,12 @@ export default {
       @apply px-1;
     }
 
-    .sidebar-nav {
-      .nav-list .nav-item .nav-link {
-        @apply justify-center;
-      }
+    .sidebar-content .sidebar-nav .nav-list .nav-item .nav-link {
+      @apply justify-center;
+    }
+
+    .user-account {
+      @apply hidden;
     }
   }
 }

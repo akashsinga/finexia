@@ -107,7 +107,7 @@ export default {
   },
 
   methods: {
-    async handleLogin() {
+    handleLogin: async function () {
       if (!this.username || !this.password) return
 
       this.loading = true
@@ -123,7 +123,7 @@ export default {
       }
     },
 
-    goToRegister() {
+    goToRegister: function () {
       this.$router.push('/register')
     }
   }
@@ -133,7 +133,7 @@ export default {
 <style lang="postcss" scoped>
 .login-page {
   @apply min-h-screen w-full flex items-center justify-center bg-gray-50 relative overflow-hidden;
-  background-image:
+  background:
     radial-gradient(circle, rgba(30, 58, 138, 0.1) 2px, transparent 2px),
     radial-gradient(circle, rgba(14, 165, 233, 0.1) 2px, transparent 2px);
   background-size: 40px 40px;
