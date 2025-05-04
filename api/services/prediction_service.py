@@ -39,6 +39,11 @@ def get_predictions_by_date(db: Session, filters: PredictionFilter, skip: int = 
     if filters.min_confidence > 0:
         query = query.filter(PredictionResult.strong_move_confidence >= filters.min_confidence)
 
+    # Add filter for fo_eligible
+    if filters.fo_eligible is not None:
+        # Join with Symbol table to check fo_eligible status
+        query = query.join(Symbol, (PredictionResult.trading_symbol == Symbol.trading_symbol)).filter(Symbol.fo_eligible == filters.fo_eligible)
+
     # Add pagination
     predictions = query.order_by(PredictionResult.date.desc()).offset(skip).limit(limit).all()
 

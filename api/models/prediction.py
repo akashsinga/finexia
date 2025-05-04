@@ -46,6 +46,7 @@ class PredictionFilter(BaseModel):
     prediction_date: Optional[date] = None
     verified: Optional[bool] = None
     direction: Optional[DirectionEnum] = None
+    fo_eligible: Optional[bool] = None
     min_confidence: float = 0.5
 
 class PredictionList(BaseModel):

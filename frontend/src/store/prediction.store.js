@@ -59,8 +59,9 @@ export const usePredictionStore = defineStore('prediction', {
     async fetchTopPredictions(confidence = 0.7, limit = 5) {
       this.loading.topPredictions = true;
       try {
+        // Added fo_eligible=true parameter to only get eligible symbols
         const response = await api.get('/predictions', {
-          params: { min_confidence: confidence, limit }
+          params: { min_confidence: confidence, limit, fo_eligible: true }
         });
         this.topPredictions = response.data.predictions || [];
         return this.topPredictions;
