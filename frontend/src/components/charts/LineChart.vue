@@ -43,6 +43,9 @@ export default {
             return `${params[0].name}: ${(params[0].value * 100).toFixed(1)}%`
           }
         },
+        textStyle: {
+          fontFamily: 'Inter'
+        },
         grid: {
           left: '3%',
           right: '4%',

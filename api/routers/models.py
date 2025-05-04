@@ -22,7 +22,7 @@ async def get_status_for_model(symbol: str = Path(..., description="Trading symb
     return model
 
 
-@router.get("/", response_model=ModelList)
+@router.get("", response_model=ModelList)
 async def list_all_models(active_only: bool = Query(True, description="Only show active models"), min_accuracy: Optional[float] = Query(None, description="Filter by minimum accuracy"), skip: int = Query(0, description="Number of records to skip"), limit: int = Query(100, description="Maximum number of records to return"), db: Session = Depends(get_db)):
     """List all available models with filtering options"""
     models = list_models(db, active_only, min_accuracy, skip, limit)

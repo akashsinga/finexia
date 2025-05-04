@@ -22,7 +22,7 @@ async def get_prediction_for_symbol(symbol: str = Path(..., description="Trading
     return prediction
 
 
-@router.get("/", response_model=PredictionList)
+@router.get("", response_model=PredictionList)
 async def list_predictions(prediction_date: Optional[date] = Query(None, description="Filter by prediction date"), verified: Optional[bool] = Query(None, description="Filter by verification status"), direction: Optional[str] = Query(None, description="Filter by direction (UP/DOWN)"), min_confidence: float = Query(0.5, description="Minimum confidence threshold"), fo_eligible: Optional[bool] = Query(None, description="Filter by F&O eligibility"), skip: int = Query(0, description="Number of records to skip"), limit: int = Query(100, description="Maximum number of records to return"), db: Session = Depends(get_db)):
     """Get predictions with various filters"""
     filters = PredictionFilter(prediction_date=prediction_date, verified=verified, direction=direction, min_confidence=min_confidence, fo_eligible=fo_eligible)

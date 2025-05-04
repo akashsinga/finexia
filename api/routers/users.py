@@ -11,7 +11,7 @@ from api.services.user_service import create_user, update_user, get_users, get_u
 router = APIRouter()
 
 
-@router.post("/", response_model=User, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=User, status_code=status.HTTP_201_CREATED)
 async def register_user(user: UserCreate, db: Session = Depends(get_db), current_user=Depends(validate_admin)):  # Only admins can create users
     return create_user(db, user)
 
@@ -21,7 +21,7 @@ async def read_users_me(current_user=Depends(get_current_user)):
     return current_user
 
 
-@router.get("/", response_model=List[User])
+@router.get("", response_model=List[User])
 async def read_all_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user=Depends(validate_admin)):  # Only admins can list users
     return get_users(db, skip=skip, limit=limit)
 
