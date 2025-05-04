@@ -141,7 +141,7 @@
               </div>
 
               <!-- Latest EOD Data Card -->
-              <!-- <div class="overview-card eod-card">
+              <div v-if="latestEOD" class="overview-card eod-card">
                 <div class="card-header">
                   <h3 class="card-title">Latest EOD Data</h3>
                   <div class="eod-date">{{ formatDate(latestEOD.date) }}</div>
@@ -167,14 +167,14 @@
                     <div class="eod-label">Volume</div>
                     <div class="eod-value">{{ formatNumber(latestEOD.volume) }}</div>
                   </div>
-                  <div class="eod-item">
+                  <div class="eod-item" v-if="latestEOD">
                     <div class="eod-label">Change</div>
                     <div class="eod-value" :class="latestEOD.change >= 0 ? 'text-success' : 'text-error'">
                       {{ latestEOD.change >= 0 ? '+' : '' }}{{ latestEOD.change.toFixed(2) }}%
                     </div>
                   </div>
                 </div>
-              </div> -->
+              </div>
 
               <!-- Technical Indicators Summary -->
               <!-- <div class="overview-card technical-card">
@@ -221,7 +221,7 @@
             </div>
 
             <!-- Latest Predictions Table -->
-            <!-- <div class="predictions-table-card">
+            <div class="predictions-table-card">
               <div class="card-header">
                 <h3 class="card-title">Latest Predictions</h3>
                 <button class="refresh-btn">
@@ -275,7 +275,7 @@
                   </tr>
                 </tbody>
               </v-table>
-            </div> -->
+            </div>
           </div>
         </v-window-item>
       </v-window>
@@ -285,7 +285,6 @@
 
 <script>
 import LineChart from '@/components/charts/LineChart.vue';
-import CandleStickChart from '@/components/charts/CandleStickChart.vue'
 import { useSymbolStore } from '@/store/symbol.store';
 import { usePredictionStore } from '@/store/prediction.store';
 import { useHistoricalStore } from '@/store/historical.store';
@@ -332,7 +331,7 @@ export default {
         }
       },
       predictionStats: {},
-      latestEOD: {},
+      latestEOD: null,
       indicators: {},
       latestPredictions: []
     };
@@ -361,6 +360,9 @@ export default {
       let dates, data
       try {
         await this.historicalStore.fetchHistoricalEODData(this.$route.params.symbol, { from_date, to_date });
+        let latestEOD = this.historicalStore.eod_data[0]
+        let prevClose = this.historicalStore.eod_data[1].close
+        this.latestEOD = { date: latestEOD.date, open: latestEOD.open, high: latestEOD.high, low: latestEOD.low, close: latestEOD.close, volume: latestEOD.volume, change: (latestEOD.close - prevClose) / prevClose }
         dates = this.historicalStore.eod_data.map((eod_data) => eod_data.date)
         data = this.historicalStore.eod_data.map((eod_data) => eod_data.close)
       } catch (error) {

@@ -40,12 +40,12 @@ export const usePredictionStore = defineStore('prediction', {
         const response = await api.get('/predictions/status/accuracy');
         this.stats.accuracy = response.data.accuracy || 0;
         this.stats.accuracyChange = 2.3; // placeholder
-        this.stats.upPredictions = response.data.up_predictions || 0;
-        this.stats.downPredictions = response.data.down_predictions || 0;
+        this.stats.upPredictions = response.data.upPredictions || 0;
+        this.stats.downPredictions = response.data.downPredictions || 0;
 
-        if (response.data.direction_accuracy) {
-          this.stats.upAccuracy = response.data.direction_accuracy;
-          this.stats.downAccuracy = response.data.direction_accuracy;
+        if (response.data.directionAccuracy) {
+          this.stats.upAccuracy = response.data.directionAccuracy;
+          this.stats.downAccuracy = response.data.directionAccuracy;
         }
         return response.data;
       } catch (error) {
