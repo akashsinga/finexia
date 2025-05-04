@@ -23,7 +23,7 @@ const DefaultLayoutWrapper = (Component) => {
 
 const routes = [
   {
-    path: '/',
+    path: '/dashboard',
     name: 'Dashboard',
     component: DefaultLayoutWrapper(Dashboard),
     meta: { title: 'Dashboard | Finexia' }
@@ -61,7 +61,7 @@ const routes = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/'
+    redirect: '/dashboard'
   }
 ]
 
