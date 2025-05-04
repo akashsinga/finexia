@@ -9,7 +9,6 @@
 @layer base {
   html {
     font-family: 'Geist', system-ui, sans-serif;
-    @apply overflow-y-hidden;
     @apply text-gray-800;
   }
 }
