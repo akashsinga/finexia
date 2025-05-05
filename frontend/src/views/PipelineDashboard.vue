@@ -1,7 +1,7 @@
 <template>
   <div class="pipeline-dashboard">
     <!-- Header Section with Pipeline Status -->
-    <div class="dashboard-header bg-white rounded-md shadow-sm border border-gray-200 p-5">
+    <div class="dashboard-header bg-white rounded-xl shadow-sm border border-gray-200 p-5">
       <div class="flex justify-between items-center">
         <div>
           <h1 class="text-xl font-bold text-gray-800">Data Pipeline</h1>
@@ -12,6 +12,10 @@
             <span v-if="lastUpdateTime" class="text-xs text-gray-500 ml-2">
               Last updated: {{ lastUpdateTime }}
             </span>
+            <div v-if="wsConnected" class="ml-2 flex items-center text-xs text-green-600">
+              <div class="h-2 w-2 rounded-full bg-green-500 mr-1"></div>
+              <span>Live</span>
+            </div>
           </div>
         </div>
         <div class="flex gap-2">
@@ -44,61 +48,61 @@
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
       <!-- System Stats Card -->
-      <div class="stats-card bg-white rounded-md shadow-sm border border-gray-200 p-5">
+      <div class="stats-card bg-white rounded-xl shadow-sm border border-gray-200 p-5">
         <h2 class="text-base font-bold text-gray-800 mb-4">System Statistics</h2>
         <div class="grid grid-cols-2 gap-4">
           <div class="stat-item">
             <div class="text-xs text-gray-500">Total Predictions</div>
-            <div class="text-lg font-semibold">{{ systemStore.stats.totalPredictions || 0 }}</div>
+            <div class="text-lg font-semibold">{{ systemStats.totalPredictions || 0 }}</div>
           </div>
           <div class="stat-item">
             <div class="text-xs text-gray-500">Today's Predictions</div>
-            <div class="text-lg font-semibold">{{ systemStore.stats.todayPredictions || 0 }}</div>
+            <div class="text-lg font-semibold">{{ systemStats.todayPredictions || 0 }}</div>
           </div>
           <div class="stat-item">
             <div class="text-xs text-gray-500">Yesterday's Predictions</div>
-            <div class="text-lg font-semibold">{{ systemStore.stats.yesterdayPredictions || 0 }}</div>
+            <div class="text-lg font-semibold">{{ systemStats.yesterdayPredictions || 0 }}</div>
           </div>
           <div class="stat-item">
             <div class="text-xs text-gray-500">Verified Predictions</div>
-            <div class="text-lg font-semibold">{{ systemStore.stats.verifiedPredictions || 0 }}</div>
+            <div class="text-lg font-semibold">{{ systemStats.verifiedPredictions || 0 }}</div>
           </div>
           <div class="stat-item col-span-2">
             <div class="text-xs text-gray-500">Success Rate</div>
             <div class="flex items-center">
-              <div class="text-lg font-semibold">{{ (systemStore.stats.verifiedPredictionPercent || 0).toFixed(1) }}%</div>
-              <v-progress-linear :model-value="systemStore.stats.verifiedPredictionPercent || 0" color="success" height="4" class="ml-3 flex-grow max-w-[200px]"></v-progress-linear>
+              <div class="text-lg font-semibold">{{ (systemStats.verifiedPredictionPercent || 0).toFixed(1) }}%</div>
+              <v-progress-linear :model-value="systemStats.verifiedPredictionPercent || 0" color="success" height="4" class="ml-3 flex-grow max-w-[200px]"></v-progress-linear>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Model Stats Card -->
-      <div class="models-card bg-white rounded-md shadow-sm border border-gray-200 p-5">
+      <div class="models-card bg-white rounded-xl shadow-sm border border-gray-200 p-5">
         <h2 class="text-base font-bold text-gray-800 mb-4">Model Information</h2>
         <div class="grid grid-cols-2 gap-4">
           <div class="stat-item">
             <div class="text-xs text-gray-500">Direction Predictions</div>
-            <div class="text-lg font-semibold">{{ systemStore.stats.directionPredictions || 0 }}</div>
+            <div class="text-lg font-semibold">{{ systemStats.directionPredictions || 0 }}</div>
           </div>
           <div class="stat-item">
             <div class="text-xs text-gray-500">Recent Model Training</div>
-            <div class="text-lg font-semibold">{{ systemStore.stats.recentModelTrainingCount || 0 }}</div>
+            <div class="text-lg font-semibold">{{ systemStats.recentModelTrainingCount || 0 }}</div>
           </div>
           <div class="stat-item">
             <div class="text-xs text-gray-500">Model Files</div>
-            <div class="text-lg font-semibold">{{ systemStore.stats.modelFileCount || 0 }}</div>
+            <div class="text-lg font-semibold">{{ systemStats.modelFileCount || 0 }}</div>
           </div>
           <div class="stat-item">
             <div class="text-xs text-gray-500">Model Directory Size</div>
-            <div class="text-lg font-semibold">{{ formatSize(systemStore.stats.modelDirectorySizeMb || 0) }}</div>
+            <div class="text-lg font-semibold">{{ formatSize(systemStats.modelDirectorySizeMb || 0) }}</div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Pipeline Steps Section -->
-    <div class="steps-card bg-white rounded-md shadow-sm border border-gray-200 p-5 mt-6">
+    <div class="steps-card bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
       <h2 class="text-base font-bold text-gray-800 mb-4">Pipeline Steps</h2>
       <div class="steps-container">
         <div v-for="(step, index) in pipelineSteps" :key="step.id" class="step-item" :class="{ 'step-running': isRunning && pipelineStatus.currentStep === step.name }">
@@ -120,7 +124,7 @@
     </div>
 
     <!-- Pipeline Configuration Section -->
-    <div class="config-card bg-white rounded-md shadow-sm border border-gray-200 p-5 mt-6">
+    <div class="config-card bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-base font-bold text-gray-800">Quick Configuration</h2>
         <v-btn color="primary" size="small" variant="tonal" @click="showConfigModal = true">
@@ -137,7 +141,7 @@
     </div>
 
     <!-- Status Message -->
-    <div v-if="statusMessage" class="status-message mt-6 p-4 rounded-md" :class="statusMessageClass">
+    <div v-if="statusMessage" class="status-message mt-6 p-4 rounded-lg" :class="statusMessageClass">
       <div class="flex items-start">
         <v-icon :icon="statusMessageIcon" class="mr-2 mt-0.5"></v-icon>
         <div>
@@ -149,7 +153,7 @@
 
     <!-- Configuration Modal -->
     <v-dialog v-model="showConfigModal" max-width="600">
-      <div class="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="p-5 border-b border-gray-200">
           <h2 class="text-lg font-bold">Pipeline Configuration</h2>
         </div>
@@ -180,6 +184,7 @@
 </template>
 
 <script>
+import { api } from '@/plugins';
 import { useSystemStore } from '@/store/system.store';
 
 export default {
@@ -195,6 +200,22 @@ export default {
         currentStep: null,
         estimatedDurationMinutes: null,
         requestedBy: null
+      },
+
+      // System statistics
+      systemStats: {
+        status: 'offline',
+        serverTime: null,
+        databaseStatus: 'disconnected',
+        totalPredictions: 0,
+        todayPredictions: 0,
+        yesterdayPredictions: 0,
+        verifiedPredictions: 0,
+        verifiedPredictionPercent: 0,
+        directionPredictions: 0,
+        recentModelTrainingCount: 0,
+        modelDirectorySizeMb: 0,
+        modelFileCount: 0
       },
 
       // Pipeline steps that match your backend's steps terminology
@@ -236,18 +257,26 @@ export default {
       // UI state
       showConfigModal: false,
 
+      // WebSocket connection
+      wsConnection: null,
+      wsConnected: false,
+
+      // Last update time
+      lastUpdateTime: null,
+
       // System store
-      systemStore: useSystemStore()
+      systemStore: useSystemStore(),
+
+      // Reconnection settings
+      wsReconnectAttempts: 0,
+      wsMaxReconnectAttempts: 5,
+      wsReconnectTimeout: null
     };
   },
 
   computed: {
     isRunning() {
       return this.pipelineStatus.status === 'running';
-    },
-
-    lastUpdateTime() {
-      return this.systemStore.lastUpdateTime;
     },
 
     statusMessageClass() {
@@ -280,6 +309,168 @@ export default {
 
   methods: {
     /**
+     * Initialize WebSocket connection to System Status
+     */
+    initWebSocket() {
+      // Close any existing connection
+      this.closeWebSocket();
+
+      try {
+        // Get token from localStorage for authentication
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+          this.showStatusMessage('Authentication token not found. Live updates disabled.', 'warning');
+          return;
+        }
+
+        // Connect to system status WebSocket with token
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const baseUrl = `${wsProtocol}//${window.location.host}`;
+        const wsUrl = `${baseUrl}/system/status?token=${token}`;
+
+        this.wsConnection = new WebSocket(wsUrl);
+
+        // WebSocket event handlers
+        this.wsConnection.onopen = this.handleWsOpen;
+        this.wsConnection.onmessage = this.handleWsMessage;
+        this.wsConnection.onclose = this.handleWsClose;
+        this.wsConnection.onerror = this.handleWsError;
+      } catch (error) {
+        console.error('WebSocket initialization error:', error);
+        this.showStatusMessage('Failed to establish live connection', 'error');
+      }
+    },
+
+    /**
+     * Handle WebSocket open event
+     */
+    handleWsOpen() {
+      this.wsConnected = true;
+      this.wsReconnectAttempts = 0;
+      console.log('WebSocket connected to system status');
+    },
+
+    /**
+     * Handle WebSocket messages
+     */
+    handleWsMessage(event) {
+      try {
+        // Parse message data
+        const data = JSON.parse(event.data);
+
+        // Update timestamp
+        this.updateLastUpdateTime();
+
+        // Handle different message types
+        if (data.type === 'connected') {
+          // Connection successful - no action needed
+          console.log('WebSocket connection confirmed:', data.message);
+        }
+        else if (data.type === 'status_update') {
+          // Update system status
+          this.updateSystemStats(data.status);
+
+          // Update pipeline status if running
+          if (data.pipeline_status) {
+            this.updatePipelineStatus(data.pipeline_status);
+          }
+        }
+        else if (data.type === 'pipeline_update') {
+          // Update pipeline status
+          this.updatePipelineStatus(data.pipeline_status);
+        }
+        else if (data.type === 'error') {
+          // Show error message
+          this.showStatusMessage(data.message, 'error');
+        }
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error);
+      }
+    },
+
+    /**
+     * Handle WebSocket close event
+     */
+    handleWsClose(event) {
+      this.wsConnected = false;
+
+      // Don't attempt to reconnect if closed normally
+      if (event.code === 1000 || event.code === 1001) {
+        console.log('WebSocket closed normally');
+        return;
+      }
+
+      // Attempt to reconnect
+      this.attemptReconnect();
+    },
+
+    /**
+     * Handle WebSocket error
+     */
+    handleWsError(error) {
+      console.error('WebSocket error:', error);
+      this.wsConnected = false;
+
+      // Show error message only on first occurrence
+      if (this.wsReconnectAttempts === 0) {
+        this.showStatusMessage('Connection error. Attempting to reconnect...', 'warning');
+      }
+
+      // Attempt to reconnect
+      this.attemptReconnect();
+    },
+
+    /**
+     * Attempt to reconnect WebSocket
+     */
+    attemptReconnect() {
+      // Clear any existing reconnect timeout
+      if (this.wsReconnectTimeout) {
+        clearTimeout(this.wsReconnectTimeout);
+      }
+
+      // Check if max reconnect attempts reached
+      if (this.wsReconnectAttempts >= this.wsMaxReconnectAttempts) {
+        this.showStatusMessage('Failed to reconnect. Please refresh the page.', 'error');
+        return;
+      }
+
+      // Increment reconnect attempts
+      this.wsReconnectAttempts++;
+
+      // Exponential backoff for reconnect (1s, 2s, 4s, 8s, 16s)
+      const delay = Math.min(1000 * Math.pow(2, this.wsReconnectAttempts - 1), 16000);
+
+      console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.wsReconnectAttempts})`);
+
+      // Set timeout for reconnect
+      this.wsReconnectTimeout = setTimeout(() => {
+        if (!this.wsConnected) {
+          this.initWebSocket();
+        }
+      }, delay);
+    },
+
+    /**
+     * Close WebSocket connection
+     */
+    closeWebSocket() {
+      if (this.wsConnection) {
+        this.wsConnection.onclose = null; // Prevent reconnect attempts on intentional close
+        this.wsConnection.close();
+        this.wsConnection = null;
+        this.wsConnected = false;
+      }
+
+      // Clear any reconnect timeout
+      if (this.wsReconnectTimeout) {
+        clearTimeout(this.wsReconnectTimeout);
+        this.wsReconnectTimeout = null;
+      }
+    },
+
+    /**
      * Run the pipeline using the configured settings
      */
     async runPipeline() {
@@ -295,62 +486,133 @@ export default {
           steps: this.selectedSteps.length > 0 ? this.selectedSteps : null
         };
 
-        // Use the system store to run the pipeline
-        await this.systemStore.triggerPipelineRun(payload);
+        // Call API to run pipeline using the api service
+        const response = await api.post('/system/run-pipeline', payload);
+
+        // Get response data
+        const data = response.data;
+
+        // Update status with API response
+        this.updatePipelineStatus({
+          status: 'running',
+          message: data.message,
+          start_time: data.start_time,
+          requested_by: data.requested_by,
+          estimated_duration_minutes: data.estimated_duration_minutes,
+          steps: data.steps || []
+        });
 
         // Show success message
         this.showStatusMessage('Pipeline execution started successfully', 'success');
 
-        // Start monitoring pipeline status
-        this.monitorPipelineStatus();
+        // Get a baseline of system stats
+        this.fetchInitialSystemStatus();
       } catch (error) {
         console.error('Failed to start pipeline:', error);
         this.pipelineStatus.status = 'failed';
-        this.showStatusMessage(`Failed to start pipeline: ${error.message}`, 'error');
+        this.showStatusMessage(`Failed to start pipeline: ${error.response?.data?.detail || error.message}`, 'error');
       }
     },
 
     /**
-     * Monitor pipeline status
+     * Fetch initial system status via HTTP
      */
-    monitorPipelineStatus() {
-      // Poll for status updates
-      const checkStatus = async () => {
-        try {
-          // Refresh system status
-          await this.systemStore.fetchSystemStatus();
+    async fetchInitialSystemStatus() {
+      try {
+        // Use the api service to get system status
+        const response = await api.get('/system/status');
 
-          // Update local pipeline status from store
-          if (this.systemStore.pipelineStatus) {
-            this.pipelineStatus = {
-              ...this.pipelineStatus,
-              ...this.systemStore.pipelineStatus
-            };
+        // Get response data
+        const data = response.data;
 
-            // If pipeline is complete, show message
-            if (this.pipelineStatus.status === 'completed') {
-              this.showStatusMessage('Pipeline execution completed successfully', 'success');
-              return; // Stop monitoring
-            }
-            // If pipeline failed, show error
-            else if (this.pipelineStatus.status === 'failed') {
-              this.showStatusMessage('Pipeline execution failed', 'error');
-              return; // Stop monitoring
-            }
-          }
+        // Update system stats and pipeline status
+        this.updateSystemStats(data);
 
-          // Continue monitoring if still running
-          if (this.pipelineStatus.status === 'running') {
-            setTimeout(checkStatus, 5000);
-          }
-        } catch (error) {
-          console.error('Error monitoring pipeline status:', error);
-          setTimeout(checkStatus, 5000); // Continue despite error
+        if (data.pipeline_status) {
+          this.updatePipelineStatus(data.pipeline_status);
         }
+
+        // Update timestamp
+        this.updateLastUpdateTime();
+      } catch (error) {
+        console.error('Failed to fetch initial system status:', error);
+      }
+    },
+
+    /**
+     * Update system stats
+     */
+    updateSystemStats(data) {
+      // Update system statistics
+      this.systemStats = {
+        status: data.status || 'offline',
+        serverTime: data.server_time,
+        databaseStatus: data.database_status || 'disconnected',
+        totalPredictions: data.total_predictions || 0,
+        todayPredictions: data.today_predictions || 0,
+        yesterdayPredictions: data.yesterday_predictions || 0,
+        verifiedPredictions: data.verified_predictions || 0,
+        verifiedPredictionPercent: data.verified_prediction_percent || 0,
+        directionPredictions: data.direction_predictions || 0,
+        recentModelTrainingCount: data.recent_model_training_count || 0,
+        modelDirectorySizeMb: data.model_directory_size_mb || 0,
+        modelFileCount: data.model_file_count || 0
+      };
+    },
+
+    /**
+     * Update pipeline status
+     */
+    updatePipelineStatus(pipelineStatus) {
+      if (!pipelineStatus) return;
+
+      this.pipelineStatus = {
+        status: pipelineStatus.status || 'idle',
+        message: pipelineStatus.message,
+        currentStep: pipelineStatus.current_step,
+        requestedBy: pipelineStatus.requested_by,
+        estimatedDurationMinutes: pipelineStatus.estimated_duration_minutes,
+        progress: this.calculateProgress(pipelineStatus)
       };
 
-      // Start monitoring
-      checkStatus();
+      // If pipeline just completed, show message
+      if (pipelineStatus.status === 'completed' && this.isRunning) {
+        this.showStatusMessage('Pipeline execution completed successfully', 'success');
+      }
+      // If pipeline just failed, show error
+      else if (pipelineStatus.status === 'failed' && this.isRunning) {
+        this.showStatusMessage('Pipeline execution failed', 'error');
+      }
+    },
+
+    /**
+     * Calculate progress percentage from pipeline status
+     */
+    calculateProgress(pipelineStatus) {
+      // If the API provides a progress value, use it
+      if (pipelineStatus.progress !== undefined) {
+        return pipelineStatus.progress;
+      }
+
+      // Calculate progress based on steps if available
+      if (pipelineStatus.completed_steps !== undefined && pipelineStatus.total_steps !== undefined) {
+        return (pipelineStatus.completed_steps / pipelineStatus.total_steps) * 100;
+      }
+
+      // Calculate progress based on time if available
+      if (pipelineStatus.start_time && pipelineStatus.estimated_duration_minutes) {
+        const startTime = new Date(pipelineStatus.start_time).getTime();
+        const expectedEndTime = startTime + (pipelineStatus.estimated_duration_minutes * 60 * 1000);
+        const now = new Date().getTime();
+        const totalDuration = expectedEndTime - startTime;
+        const elapsed = now - startTime;
+
+        // Ensure progress doesn't exceed 99% until complete
+        return Math.min(99, (elapsed / totalDuration) * 100);
+      }
+
+      // Default indeterminate progress
+      return 0;
     },
 
     /**
@@ -382,6 +644,17 @@ export default {
      */
     clearStatusMessage() {
       this.statusMessage = null;
+    },
+
+    /**
+     * Update the last refresh timestamp
+     */
+    updateLastUpdateTime() {
+      const now = new Date();
+      this.lastUpdateTime = now.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     },
 
     /**
@@ -471,8 +744,16 @@ export default {
   },
 
   mounted() {
-    // Fetch initial system status using the store
-    this.systemStore.fetchSystemStatus();
+    // Fetch initial system status
+    this.fetchInitialSystemStatus();
+
+    // Initialize WebSocket connection
+    this.initWebSocket();
+  },
+
+  beforeUnmount() {
+    // Close WebSocket connection
+    this.closeWebSocket();
   }
 };
 </script>
@@ -489,7 +770,7 @@ export default {
 
 /* Statistics Cards */
 .stat-item {
-  @apply bg-gray-50 rounded-md p-3 border border-gray-100;
+  @apply bg-gray-50 rounded-lg p-3 border border-gray-100;
 }
 
 /* Pipeline Steps */
@@ -498,56 +779,10 @@ export default {
 }
 
 .step-item {
-  @apply flex items-center bg-gray-50 rounded-md p-3 border border-gray-100;
+  @apply flex items-center bg-gray-50 rounded-lg p-3 border border-gray-100 transition-colors duration-200;
 }
 
 .step-running {
   @apply bg-blue-50 border-blue-200;
-}
-
-.step-indicator {
-  @apply w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium mr-3 flex-shrink-0;
-}
-
-.step-content {
-  @apply flex-1;
-}
-
-.step-title {
-  @apply text-sm font-medium;
-}
-
-.step-description {
-  @apply text-xs text-gray-500 mt-1;
-}
-
-.step-toggle {
-  @apply ml-3 flex-shrink-0;
-}
-
-/* Config Groups */
-.config-group {
-  @apply bg-gray-50 rounded-md p-3 border border-gray-100;
-}
-
-/* Status Message */
-.status-message {
-  @apply animate-fadeIn;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
 }
 </style>
