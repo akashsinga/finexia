@@ -47,7 +47,7 @@ async def train_model_for_symbol(background_tasks: BackgroundTasks, symbol: str 
 @router.post("/performance", response_model=List[ModelPerformanceResponse])
 async def get_overall_model_performance(request: ModelPerformanceRequest, db: Session = Depends(get_db)):
     """Get overall performance metrics for all models"""
-    performance = get_model_performance(db, request.top_n, request.metric, request.fo_elgible)
+    performance = get_model_performance(db, request.top_n, request.metric, request.fo_eligible)
     return performance
 
 

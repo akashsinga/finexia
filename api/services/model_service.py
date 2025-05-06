@@ -91,6 +91,10 @@ def get_model_performance(db: Session, top_n: int = 10, metric: str = "f1_score"
 
     # Get "move" model performance only
     query = query.filter(ModelPerformance.model_type == "move")
+    
+    # Filter fo_eligible if applicable    
+    if fo_eligible:
+        query = query.join(Symbol, Symbol.trading_symbol == ModelPerformance.trading_symbol).filter(Symbol.fo_eligible)
 
     # Sort by specified metric
     if metric == "accuracy":
