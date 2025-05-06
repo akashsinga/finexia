@@ -124,10 +124,10 @@ import { useAuthStore } from '@/store/auth.store'
 export default {
   data() {
     return {
-      collapsed: false,
+      collapsed: true,
       marketOpenTime: '09:15',
       marketCloseTime: '15:30',
-      currentTime: new Date(),
+      currentTime: null,
       notificationCount: 3,
       navItems: [
         { title: 'Dashboard', icon: 'mdi-view-dashboard', pathName: 'Dashboard' },
@@ -157,7 +157,7 @@ export default {
       return now >= open && now <= close ? 'LIVE' : 'CLOSED'
     },
     formattedTime: function () {
-      return this.currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      return this.currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     },
     currentYear() {
       return new Date().getFullYear()
@@ -210,10 +210,11 @@ export default {
       }
     }
   },
-  mounted() {
+  created() {
+    this.currentTime = new Date()
     this._clock = setInterval(() => {
       this.currentTime = new Date()
-    }, 60000)
+    }, 1000)
   },
   beforeUnmount() {
     clearInterval(this._clock)
@@ -395,6 +396,10 @@ export default {
         @apply justify-center;
       }
 
+      .user-account {
+        @apply justify-center;
+      }
+
       .user-account .user-wrapper {
         @apply justify-center;
       }
@@ -412,13 +417,13 @@ export default {
 
   /* Header Styling */
   .header {
-    @apply sticky top-0 z-40 bg-white border-b border-gray-300 px-6 py-3 flex items-center justify-between;
+    @apply sticky top-0 z-40 px-6 py-3 flex items-center justify-between bg-white/90 border-b border-gray-300 backdrop-blur;
 
     .header-left {
       @apply flex flex-col;
 
       .page-title {
-        @apply text-lg font-bold text-gray-800;
+        @apply text-lg font-semibold text-primary;
       }
 
       .breadcrumbs {
@@ -446,18 +451,18 @@ export default {
       @apply flex items-center gap-4;
 
       .market-status {
-        @apply flex items-center text-sm;
+        @apply flex items-center gap-2 px-3 py-1 rounded-full text-sm bg-gray-100 border border-gray-300;
 
         .status-dot {
-          @apply w-2 h-2 rounded-full mr-2;
+          @apply w-2.5 h-2.5 rounded-full shadow-md;
         }
 
         .market-status-text {
-          @apply font-medium;
+          @apply text-gray-700;
         }
 
         .market-time {
-          @apply text-gray-500 ml-1;
+          @apply text-gray-500 text-xs;
         }
       }
 
@@ -477,15 +482,26 @@ export default {
 
   /* Content Area */
   .content-area {
-    @apply flex-1 p-6 overflow-auto;
-    background: radial-gradient(circle, rgba(30, 58, 138, 0.05) 2px, transparent 2px), radial-gradient(circle, rgba(14, 165, 233, 0.05) 2px, transparent 2px);
+    @apply flex-1 p-6 overflow-auto relative bg-gray-50;
+  }
+
+  .content-area::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle, rgba(191, 219, 254, 0.4) 1px, transparent 1px),
+      radial-gradient(circle, rgba(186, 230, 253, 0.3) 1px, transparent 1px);
     background-size: 40px 40px;
     background-position: 0 0, 20px 20px;
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 0;
   }
 
   /* Footer Area */
   .footer {
-    @apply py-3 px-6 bg-white border-t border-gray-200 text-xs text-gray-500;
+    @apply py-3 px-6 text-xs text-gray-500 bg-white/90 border-t border-gray-300 backdrop-blur;
 
     .footer-content {
       @apply flex justify-between items-center;
