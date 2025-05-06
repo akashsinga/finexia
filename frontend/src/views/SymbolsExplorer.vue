@@ -441,7 +441,7 @@ export default {
 }
 
 .search-field {
-  @apply flex-grow max-w-sm;
+  @apply flex-grow min-w-80;
 }
 
 .filter-actions {

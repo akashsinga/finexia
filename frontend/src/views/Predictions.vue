@@ -334,7 +334,7 @@ export default {
       filters: {
         direction: null,
         verified: null,
-        foEligible: null,
+        foEligible: true,
         predictionDate: null,
         minConfidence: 0.5
       },
