@@ -1214,7 +1214,7 @@ export default {
 <style lang="postcss" scoped>
 /* Base layout */
 .pipeline-dashboard {
-  @apply max-w-7xl mx-auto space-y-6;
+  @apply mx-auto space-y-6;
 }
 
 /* Status Card */
