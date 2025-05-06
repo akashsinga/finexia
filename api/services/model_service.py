@@ -76,7 +76,7 @@ async def train_model_async(db: Session, symbol: str, move_classifier: str = LIG
     return result
 
 
-def get_model_performance(db: Session, top_n: int = 10, metric: str = "f1_score") -> List[ModelPerformanceResponse]:
+def get_model_performance(db: Session, top_n: int = 10, metric: str = "f1_score", fo_eligible: bool = False) -> List[ModelPerformanceResponse]:
     """Get performance metrics for all models, sorted by specified metric"""
     # Validate metric
     valid_metrics = ["accuracy", "precision", "recall", "f1_score"]

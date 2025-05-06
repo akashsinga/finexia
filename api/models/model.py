@@ -39,6 +39,7 @@ class ModelList(BaseModel):
 class ModelPerformanceRequest(BaseModel):
     top_n: int = 5 # Number of top models to return
     metric: str = "recall" # Metric to rank by (accuracy, precision, recall, f1_score)
+    fo_elgible: bool = False
 
 class ModelPerformanceResponse(BaseModel):
     trading_symbol: str

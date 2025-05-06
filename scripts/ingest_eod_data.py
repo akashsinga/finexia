@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from db.database import SessionLocal
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import time
 
 
@@ -53,9 +54,9 @@ def is_today_data_present(session: Session, today: datetime.date) -> bool:
 
 def is_market_closed() -> bool:
     """Check if market is closed based on time of day."""
-    now = datetime.now()
-    # Market closes at 3:30 PM IST
-    return now.hour >= 15 and now.minute >= 30
+    now = datetime.now(ZoneInfo("Asia/Kolkata"))
+    print("IST Time:", now)
+    return now.hour > 15 or (now.hour == 15 and now.minute >= 30)
 
 
 def is_weekend(date: datetime.date) -> bool:
