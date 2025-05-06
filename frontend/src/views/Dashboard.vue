@@ -23,7 +23,7 @@
     </div>
 
     <!-- Recent Verifications & Model Performance -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 gap-6">
       <!-- Recent Verified Predictions -->
       <DataTableCard title="Recently Verified Predictions" :headers="verifiedPredictionsHeaders" :loading="loading.verifiedPredictions" :is-empty="verifiedPredictions.length === 0" empty-message="No verified predictions available" @refresh="refreshVerifiedPredictions" @view-all="navigateTo('Predictions')">
         <tr v-for="(prediction, i) in verifiedPredictions" :key="i">
@@ -52,7 +52,7 @@
           <td>{{ (model.precision * 100).toFixed(1) }}%</td>
           <td>{{ (model.recall * 100).toFixed(1) }}%</td>
           <td>{{ (model.f1_score * 100).toFixed(1) }}%</td>
-          <td>{{ $filters.formatDate(model.evaluation_date, 'MMM D YY') }}</td>
+          <td>{{ $filters.formatDate(model.evaluation_date, 'MMM D, YYYY') }}</td>
         </tr>
       </DataTableCard>
     </div>

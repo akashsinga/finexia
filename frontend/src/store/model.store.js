@@ -9,10 +9,10 @@ export const useModelStore = defineStore('model', {
   }),
 
   actions: {
-    async fetchModelPerformance(topN = 5, metric = 'f1_score') {
+    async fetchModelPerformance(topN = 5, metric = 'f1_score', foEligible = true) {
       this.loading = true;
       try {
-        const response = await api.post('/models/performance', { top_n: topN, metric });
+        const response = await api.post('/models/performance', { top_n: topN, metric, fo_eligible: foEligible });
         this.topModels = response.data || [];
         return this.topModels;
       } catch (error) {

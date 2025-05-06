@@ -89,11 +89,11 @@ export const usePredictionStore = defineStore('prediction', {
       }
     },
 
-    fetchVerifiedPredictions: async function (limit = 10) {
+    fetchVerifiedPredictions: async function (limit = 10, foEligible = true) {
       this.loading.verifiedPredictions = true;
       try {
         const response = await api.get('/predictions', {
-          params: { verified: true, limit }
+          params: { verified: true, limit, fo_eligible: foEligible }
         });
         this.verifiedPredictions = response.data.predictions || [];
         return this.verifiedPredictions;

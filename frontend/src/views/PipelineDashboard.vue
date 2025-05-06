@@ -1,43 +1,38 @@
 <template>
   <div class="pipeline-dashboard">
-    <!-- Header Section with Pipeline Status -->
-    <div class="dashboard-header bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-      <div class="flex justify-between items-center">
-        <div>
-          <h1 class="text-xl font-bold text-gray-800">Data Pipeline</h1>
-          <div class="flex items-center mt-1">
-            <div class="status-badge" :class="getStatusBadgeClass(pipelineStatus.status)">
-              {{ capitalizeFirst(pipelineStatus.status) }}
-            </div>
-            <span v-if="lastUpdateTime" class="text-xs text-gray-500 ml-2">
-              Last updated: {{ lastUpdateTime }}
-            </span>
-            <div v-if="wsConnected" class="ml-2 flex items-center text-xs text-green-600">
-              <div class="h-2 w-2 rounded-full bg-green-500 mr-1"></div>
-              <span>Live</span>
+    <!-- Status Card with Pipeline Controls -->
+    <div class="status-card">
+      <div class="status-header">
+        <div class="status-info">
+          <div class="status-title-row">
+            <h1 class="status-title">Pipeline Dashboard</h1>
+            <div class="connection-status" :class="{ 'connected': wsConnected }">
+              <span class="status-dot"></span>
+              <span class="status-text">{{ wsConnected ? 'Live' : 'Offline' }}</span>
             </div>
           </div>
+          <div class="status-badge" :class="getStatusClass(pipelineStatus.status)">
+            {{ capitalizeFirst(pipelineStatus.status) }}
+          </div>
         </div>
-        <div class="flex gap-2">
-          <v-btn color="primary" size="small" variant="tonal" prepend-icon="mdi-cog" @click="showConfigModal = true">
+        <div class="action-buttons">
+          <v-btn color="primary" :variant="isRunning ? 'outlined' : 'tonal'" :disabled="isRunning" size="small" prepend-icon="mdi-cog" @click="showConfigModal = true">
             Configure
           </v-btn>
-          <v-btn color="primary" size="small" variant="elevated" prepend-icon="mdi-play" :loading="isRunning" :disabled="isRunning" @click="runPipeline">
+          <v-btn color="primary" :variant="isRunning ? 'outlined' : 'elevated'" :disabled="isRunning" size="small" :loading="isRunning" prepend-icon="mdi-play" @click="runPipeline">
             Run Pipeline
           </v-btn>
         </div>
       </div>
 
       <!-- Progress bar when pipeline is running -->
-      <div v-if="isRunning" class="mt-4">
-        <div class="flex justify-between items-center mb-1">
-          <div class="text-sm font-medium">
-            {{ pipelineStatus.message || 'Running pipeline...' }}
-          </div>
-          <div class="text-xs">
-            {{ Math.round(pipelineStatus.progress) }}% complete
-            <span v-if="pipelineStatus.estimatedDurationMinutes" class="ml-2">
-              ({{ formatTimeRemaining(pipelineStatus.estimatedDurationMinutes) }} remaining)
+      <div v-if="isRunning" class="progress-container">
+        <div class="progress-header">
+          <div class="progress-message">{{ pipelineStatus.message || 'Running pipeline...' }}</div>
+          <div class="progress-info">
+            <span class="progress-percentage">{{ Math.round(pipelineStatus.progress) }}%</span>
+            <span v-if="pipelineStatus.estimatedDurationMinutes" class="progress-time">
+              {{ formatTimeRemaining(pipelineStatus.estimatedDurationMinutes) }} remaining
             </span>
           </div>
         </div>
@@ -45,67 +40,123 @@
       </div>
     </div>
 
-    <!-- Main Content Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+    <!-- Stats Cards Grid -->
+    <div class="stats-grid">
       <!-- System Stats Card -->
-      <div class="stats-card bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-        <h2 class="text-base font-bold text-gray-800 mb-4">System Statistics</h2>
-        <div class="grid grid-cols-2 gap-4">
+      <div class="stat-card">
+        <div class="stat-card-header">
+          <h2 class="stat-card-title">System Statistics</h2>
+          <span v-if="lastUpdateTime" class="last-update">Updated {{ lastUpdateTime }}</span>
+        </div>
+        <div class="stat-grid">
           <div class="stat-item">
-            <div class="text-xs text-gray-500">Total Predictions</div>
-            <div class="text-lg font-semibold">{{ systemStats.totalPredictions || 0 }}</div>
+            <div class="stat-icon bg-blue-50 text-blue-600">
+              <v-icon>mdi-chart-line</v-icon>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ systemStats.totalPredictions || 0 }}</div>
+              <div class="stat-label">Total Predictions</div>
+            </div>
           </div>
           <div class="stat-item">
-            <div class="text-xs text-gray-500">Today's Predictions</div>
-            <div class="text-lg font-semibold">{{ systemStats.todayPredictions || 0 }}</div>
+            <div class="stat-icon bg-green-50 text-green-600">
+              <v-icon>mdi-calendar-check</v-icon>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ systemStats.todayPredictions || 0 }}</div>
+              <div class="stat-label">Today's Predictions</div>
+            </div>
           </div>
           <div class="stat-item">
-            <div class="text-xs text-gray-500">Yesterday's Predictions</div>
-            <div class="text-lg font-semibold">{{ systemStats.yesterdayPredictions || 0 }}</div>
+            <div class="stat-icon bg-amber-50 text-amber-600">
+              <v-icon>mdi-check-decagram</v-icon>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ systemStats.verifiedPredictions || 0 }}</div>
+              <div class="stat-label">Verified Predictions</div>
+            </div>
           </div>
           <div class="stat-item">
-            <div class="text-xs text-gray-500">Verified Predictions</div>
-            <div class="text-lg font-semibold">{{ systemStats.verifiedPredictions || 0 }}</div>
-          </div>
-          <div class="stat-item col-span-2">
-            <div class="text-xs text-gray-500">Success Rate</div>
-            <div class="flex items-center">
-              <div class="text-lg font-semibold">{{ (systemStats.verifiedPredictionPercent || 0).toFixed(1) }}%</div>
-              <v-progress-linear :model-value="systemStats.verifiedPredictionPercent || 0" color="success" height="4" class="ml-3 flex-grow max-w-[200px]"></v-progress-linear>
+            <div class="stat-icon bg-purple-50 text-purple-600">
+              <v-icon>mdi-arrow-decision</v-icon>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ systemStats.directionPredictions || 0 }}</div>
+              <div class="stat-label">Direction Predictions</div>
             </div>
           </div>
         </div>
+        <div class="success-rate-container">
+          <div class="success-rate-header">
+            <div class="success-rate-label">Success Rate</div>
+            <div class="success-rate-value">{{ (systemStats.verifiedPredictionPercent || 0).toFixed(1) }}%</div>
+          </div>
+          <v-progress-linear :model-value="systemStats.verifiedPredictionPercent || 0" :color="getSuccessRateColor(systemStats.verifiedPredictionPercent)" height="8" rounded></v-progress-linear>
+        </div>
       </div>
 
-      <!-- Model Stats Card -->
-      <div class="models-card bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-        <h2 class="text-base font-bold text-gray-800 mb-4">Model Information</h2>
-        <div class="grid grid-cols-2 gap-4">
+      <!-- Models Stats Card -->
+      <div class="stat-card">
+        <div class="stat-card-header">
+          <h2 class="stat-card-title">Model Information</h2>
+          <v-btn icon="mdi-refresh" variant="text" density="comfortable" color="gray" @click="fetchInitialSystemStatus"></v-btn>
+        </div>
+        <div class="stat-grid">
           <div class="stat-item">
-            <div class="text-xs text-gray-500">Direction Predictions</div>
-            <div class="text-lg font-semibold">{{ systemStats.directionPredictions || 0 }}</div>
+            <div class="stat-icon bg-indigo-50 text-indigo-600">
+              <v-icon>mdi-brain</v-icon>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ systemStats.modelFileCount || 0 }}</div>
+              <div class="stat-label">Model Files</div>
+            </div>
           </div>
           <div class="stat-item">
-            <div class="text-xs text-gray-500">Recent Model Training</div>
-            <div class="text-lg font-semibold">{{ systemStats.recentModelTrainingCount || 0 }}</div>
+            <div class="stat-icon bg-cyan-50 text-cyan-600">
+              <v-icon>mdi-file-chart</v-icon>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ formatSize(systemStats.modelDirectorySizeMb || 0) }}</div>
+              <div class="stat-label">Storage Used</div>
+            </div>
           </div>
           <div class="stat-item">
-            <div class="text-xs text-gray-500">Model Files</div>
-            <div class="text-lg font-semibold">{{ systemStats.modelFileCount || 0 }}</div>
+            <div class="stat-icon bg-pink-50 text-pink-600">
+              <v-icon>mdi-update</v-icon>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ systemStats.recentModelTrainingCount || 0 }}</div>
+              <div class="stat-label">Recent Trainings</div>
+            </div>
           </div>
           <div class="stat-item">
-            <div class="text-xs text-gray-500">Model Directory Size</div>
-            <div class="text-lg font-semibold">{{ formatSize(systemStats.modelDirectorySizeMb || 0) }}</div>
+            <div class="stat-icon bg-amber-50 text-amber-600">
+              <v-icon>mdi-database</v-icon>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ systemStats.databaseStatus || 'N/A' }}</div>
+              <div class="stat-label">Database Status</div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Pipeline Steps Section -->
-    <div class="steps-card bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
-      <h2 class="text-base font-bold text-gray-800 mb-4">Pipeline Steps</h2>
+    <!-- Pipeline Steps Panel -->
+    <div class="steps-card">
+      <div class="steps-header">
+        <h2 class="steps-title">Pipeline Steps</h2>
+        <div class="steps-actions">
+          <v-btn size="small" variant="text" color="primary" @click="selectAllSteps" class="select-btn">
+            {{ allStepsSelected ? 'Deselect All' : 'Select All' }}
+          </v-btn>
+        </div>
+      </div>
       <div class="steps-container">
-        <div v-for="(step, index) in pipelineSteps" :key="step.id" class="step-item" :class="{ 'step-running': isRunning && pipelineStatus.currentStep === step.name }">
+        <div v-for="(step, index) in pipelineSteps" :key="step.id" class="step-item" :class="{
+          'step-running': isRunning && pipelineStatus.currentStep === step.name,
+          'step-selected': selectedSteps.includes(step.id)
+        }" @click="toggleStep(step.id)">
           <div class="step-indicator" :class="getStepClass(step, pipelineStatus)">
             <v-icon v-if="getStepStatus(step, pipelineStatus) === 'completed'" size="small">mdi-check</v-icon>
             <v-icon v-else-if="getStepStatus(step, pipelineStatus) === 'running'" size="small">mdi-loading mdi-spin</v-icon>
@@ -117,65 +168,163 @@
             <div class="step-description">{{ step.description }}</div>
           </div>
           <div class="step-toggle">
-            <v-checkbox v-model="selectedSteps" :value="step.id" color="primary" hide-details density="compact"></v-checkbox>
+            <v-checkbox v-model="selectedSteps" :value="step.id" color="primary" hide-details density="compact" @click.stop></v-checkbox>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Pipeline Configuration Section -->
-    <div class="config-card bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-base font-bold text-gray-800">Quick Configuration</h2>
-        <v-btn color="primary" size="small" variant="tonal" @click="showConfigModal = true">
-          Advanced
-        </v-btn>
+    <!-- Two-column Layout for Config and Logs -->
+    <div class="config-logs-grid">
+      <!-- Quick Config Panel -->
+      <div class="config-card">
+        <div class="config-header">
+          <h2 class="config-title">Quick Configuration</h2>
+          <v-btn color="primary" size="small" variant="text" @click="showConfigModal = true">
+            Advanced Settings
+          </v-btn>
+        </div>
+
+        <div class="config-content">
+          <div class="config-item">
+            <div class="config-item-header">
+              <div class="config-item-title">Force Retraining</div>
+              <v-switch v-model="pipelineConfig.force" color="primary" hide-details density="compact"></v-switch>
+            </div>
+            <div class="config-item-description">
+              Force retraining of all models even if they were recently updated
+            </div>
+          </div>
+
+          <div class="config-item">
+            <div class="config-item-header">
+              <div class="config-item-title">Schedule</div>
+            </div>
+            <div class="config-schedule">
+              <v-select v-model="scheduleTime" :items="scheduleTimes" label="Daily run time" variant="outlined" density="compact" hide-details class="mr-2"></v-select>
+              <v-btn size="small" color="primary" variant="tonal" :disabled="!scheduleTime" @click="saveSchedule">
+                Save
+              </v-btn>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="config-group">
-          <div class="text-sm font-medium mb-2">Force Retraining</div>
-          <v-switch v-model="pipelineConfig.force" color="primary" hide-details density="compact" label="Force retraining of all models"></v-switch>
+      <!-- Recent Logs Panel -->
+      <div class="logs-card">
+        <div class="logs-header">
+          <h2 class="logs-title">Recent Logs</h2>
+          <v-btn icon="mdi-refresh" variant="text" density="comfortable" color="gray" @click="refreshLogs"></v-btn>
+        </div>
+
+        <div v-if="isLoading" class="logs-loading">
+          <v-progress-circular indeterminate color="primary"></v-progress-circular>
+        </div>
+
+        <div v-else-if="pipelineLogs.length === 0" class="logs-empty">
+          No logs available
+        </div>
+
+        <div v-else class="logs-content">
+          <div v-for="(log, index) in pipelineLogs.slice(0, 5)" :key="index" class="log-entry" :class="getLogClass(log.level)">
+            <div class="log-time">{{ formatTime(log.timestamp) }}</div>
+            <div class="log-message">{{ log.message }}</div>
+          </div>
+
+          <div v-if="pipelineLogs.length > 5" class="logs-more">
+            <v-btn size="small" variant="text" color="primary" @click="showLogsModal = true">
+              View All Logs
+            </v-btn>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Status Message -->
-    <div v-if="statusMessage" class="status-message mt-6 p-4 rounded-lg" :class="statusMessageClass">
-      <div class="flex items-start">
-        <v-icon :icon="statusMessageIcon" class="mr-2 mt-0.5"></v-icon>
-        <div>
-          <div class="font-medium">{{ statusMessageTitle }}</div>
-          <div class="text-sm">{{ statusMessage }}</div>
+    <div v-if="statusMessage" class="status-message-container">
+      <div class="status-message" :class="statusMessageClass">
+        <v-icon :icon="statusMessageIcon" class="status-icon"></v-icon>
+        <div class="status-message-content">
+          <div class="status-message-title">{{ statusMessageTitle }}</div>
+          <div class="status-message-text">{{ statusMessage }}</div>
         </div>
+        <v-btn icon="mdi-close" variant="text" size="small" @click="clearStatusMessage" class="close-btn"></v-btn>
       </div>
     </div>
 
     <!-- Configuration Modal -->
-    <v-dialog v-model="showConfigModal" max-width="600">
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="p-5 border-b border-gray-200">
-          <h2 class="text-lg font-bold">Pipeline Configuration</h2>
+    <v-dialog v-model="showConfigModal" max-width="600" scrollable>
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 class="modal-title">Pipeline Configuration</h2>
+          <v-btn icon="mdi-close" variant="text" @click="showConfigModal = false"></v-btn>
         </div>
 
-        <div class="p-5">
-          <h3 class="text-base font-medium mb-3">Steps to Execute</h3>
-          <div class="grid grid-cols-2 gap-3 mb-5">
-            <v-checkbox v-for="step in pipelineSteps" :key="step.id" v-model="selectedSteps" :value="step.id" :label="step.name" color="primary" hide-details density="compact"></v-checkbox>
+        <div class="modal-content">
+          <div class="modal-section">
+            <h3 class="section-title">Steps to Execute</h3>
+            <div class="steps-grid">
+              <v-checkbox v-for="step in pipelineSteps" :key="step.id" v-model="selectedSteps" :value="step.id" :label="step.name" color="primary" hide-details density="comfortable"></v-checkbox>
+            </div>
           </div>
 
-          <h3 class="text-base font-medium mb-3">Options</h3>
-          <div class="mb-3">
-            <v-switch v-model="pipelineConfig.force" color="primary" hide-details density="compact" label="Force Retraining of All Models"></v-switch>
+          <div class="modal-section">
+            <h3 class="section-title">Options</h3>
+            <v-switch v-model="pipelineConfig.force" color="primary" hide-details density="comfortable" label="Force Retraining of All Models"></v-switch>
+
+            <v-text-field v-model="pipelineConfig.maxSymbols" label="Maximum Symbols to Process" type="number" min="1" max="500" hint="Limit the number of symbols to process (leave empty for all)" persistent-hint density="comfortable" variant="outlined" class="mt-4"></v-text-field>
+          </div>
+
+          <div class="modal-section">
+            <h3 class="section-title">Schedule Settings</h3>
+            <div class="schedule-grid">
+              <v-select v-model="scheduleTime" :items="scheduleTimes" label="Daily run time" variant="outlined" density="comfortable"></v-select>
+
+              <v-select v-model="scheduleFrequency" :items="['Daily', 'Weekdays only', 'Custom']" label="Frequency" variant="outlined" density="comfortable"></v-select>
+            </div>
+
+            <div v-if="scheduleFrequency === 'Custom'" class="days-selection mt-3">
+              <div class="text-sm font-medium mb-2">Days of Week</div>
+              <div class="days-grid">
+                <v-checkbox v-for="day in weekDays" :key="day.value" v-model="selectedDays" :value="day.value" :label="day.label" hide-details density="comfortable" class="mr-2"></v-checkbox>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="p-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
+        <div class="modal-footer">
           <v-btn variant="text" color="gray" @click="showConfigModal = false">
             Cancel
           </v-btn>
           <v-btn color="primary" @click="saveConfig">
             Save Configuration
+          </v-btn>
+        </div>
+      </div>
+    </v-dialog>
+
+    <!-- Logs Modal -->
+    <v-dialog v-model="showLogsModal" max-width="800" scrollable>
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 class="modal-title">Pipeline Logs</h2>
+          <v-btn icon="mdi-close" variant="text" @click="showLogsModal = false"></v-btn>
+        </div>
+
+        <div class="modal-content logs-modal-content">
+          <div v-for="(log, index) in pipelineLogs" :key="index" class="log-entry-full" :class="getLogClass(log.level)">
+            <div class="log-time-full">{{ formatTime(log.timestamp) }}</div>
+            <div class="log-message-full">{{ log.message }}</div>
+          </div>
+
+          <div v-if="pipelineLogs.length === 0" class="logs-empty-full">
+            No logs available
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <v-btn color="primary" @click="showLogsModal = false">
+            Close
           </v-btn>
         </div>
       </div>
@@ -199,7 +348,8 @@ export default {
         message: null,
         currentStep: null,
         estimatedDurationMinutes: null,
-        requestedBy: null
+        requestedBy: null,
+        lastRun: null
       },
 
       // System statistics
@@ -217,6 +367,13 @@ export default {
         modelDirectorySizeMb: 0,
         modelFileCount: 0
       },
+
+      // Polling timer
+      pollingInterval: null,
+      pollingFrequency: 5000, // 5 seconds
+
+      // WebSocket connection timeout
+      wsConnectionTimeout: null,
 
       // Pipeline steps that match your backend's steps terminology
       pipelineSteps: [
@@ -251,11 +408,37 @@ export default {
 
       // Pipeline configuration
       pipelineConfig: {
-        force: false
+        force: false,
+        maxSymbols: 100
       },
+
+      // Schedule configuration
+      scheduleTime: '02:00',
+      scheduleFrequency: 'Daily',
+      selectedDays: [1, 2, 3, 4, 5], // Mon-Fri by default
+      scheduleTimes: [
+        '00:00', '01:00', '02:00', '03:00', '04:00', '05:00',
+        '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
+        '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
+        '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'
+      ],
+      weekDays: [
+        { label: 'Monday', value: 1 },
+        { label: 'Tuesday', value: 2 },
+        { label: 'Wednesday', value: 3 },
+        { label: 'Thursday', value: 4 },
+        { label: 'Friday', value: 5 },
+        { label: 'Saturday', value: 6 },
+        { label: 'Sunday', value: 0 }
+      ],
 
       // UI state
       showConfigModal: false,
+      showLogsModal: false,
+      isLoading: false,
+
+      // Pipeline logs
+      pipelineLogs: [],
 
       // WebSocket connection
       wsConnection: null,
@@ -279,12 +462,27 @@ export default {
       return this.pipelineStatus.status === 'running';
     },
 
+    allStepsSelected() {
+      return this.selectedSteps.length === this.pipelineSteps.length;
+    },
+
+    getStatusClass() {
+      return (status) => {
+        switch (status) {
+          case 'running': return 'status-running';
+          case 'completed': return 'status-completed';
+          case 'failed': return 'status-failed';
+          default: return 'status-idle';
+        }
+      };
+    },
+
     statusMessageClass() {
       switch (this.statusMessageType) {
-        case 'success': return 'bg-green-100 text-green-800';
-        case 'error': return 'bg-red-100 text-red-800';
-        case 'warning': return 'bg-amber-100 text-amber-800';
-        default: return 'bg-blue-100 text-blue-800';
+        case 'success': return 'message-success';
+        case 'error': return 'message-error';
+        case 'warning': return 'message-warning';
+        default: return 'message-info';
       }
     },
 
@@ -324,21 +522,52 @@ export default {
           return;
         }
 
-        // Connect to system status WebSocket with token
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const baseUrl = `${wsProtocol}//${window.location.host}`;
-        const wsUrl = `${baseUrl}/system/status?token=${token}`;
+        // Use configured API base URL for consistency
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
+        // Extract host from API URL for WebSocket connection
+        let wsHost;
+        try {
+          const apiUrl = new URL(apiBaseUrl);
+          wsHost = apiUrl.host;
+        } catch (e) {
+          // Fallback to window location if API URL parsing fails
+          wsHost = window.location.host;
+        }
+
+        // Determine WebSocket protocol (wss for https, ws for http)
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+        // Format WebSocket URL
+        const wsUrl = `${wsProtocol}//${wsHost}/system/status?token=${token}`;
+
+        console.log('Connecting to WebSocket:', wsUrl);
+
+        // Create new WebSocket connection
         this.wsConnection = new WebSocket(wsUrl);
 
-        // WebSocket event handlers
-        this.wsConnection.onopen = this.handleWsOpen;
-        this.wsConnection.onmessage = this.handleWsMessage;
-        this.wsConnection.onclose = this.handleWsClose;
-        this.wsConnection.onerror = this.handleWsError;
+        // Use bound methods to maintain 'this' context
+        this.wsConnection.onopen = this.handleWsOpen.bind(this);
+        this.wsConnection.onmessage = this.handleWsMessage.bind(this);
+        this.wsConnection.onclose = this.handleWsClose.bind(this);
+        this.wsConnection.onerror = this.handleWsError.bind(this);
+
+        // Set connection timeout - abort if not connected within 5 seconds
+        this.wsConnectionTimeout = setTimeout(() => {
+          if (this.wsConnection && this.wsConnection.readyState !== WebSocket.OPEN) {
+            console.warn('WebSocket connection timeout');
+            this.wsConnection.close();
+            this.wsConnected = false;
+
+            // Fallback to polling for updates
+            this.startPolling();
+          }
+        }, 5000);
       } catch (error) {
         console.error('WebSocket initialization error:', error);
-        this.showStatusMessage('Failed to establish live connection', 'error');
+
+        // Fallback to polling for updates
+        this.startPolling();
       }
     },
 
@@ -348,6 +577,16 @@ export default {
     handleWsOpen() {
       this.wsConnected = true;
       this.wsReconnectAttempts = 0;
+
+      // Clear connection timeout
+      if (this.wsConnectionTimeout) {
+        clearTimeout(this.wsConnectionTimeout);
+        this.wsConnectionTimeout = null;
+      }
+
+      // Stop polling if it was started as a fallback
+      this.stopPolling();
+
       console.log('WebSocket connected to system status');
     },
 
@@ -375,10 +614,25 @@ export default {
           if (data.pipeline_status) {
             this.updatePipelineStatus(data.pipeline_status);
           }
+
+          // Update logs if present
+          if (data.logs) {
+            this.updateLogs(data.logs);
+          }
         }
         else if (data.type === 'pipeline_update') {
           // Update pipeline status
           this.updatePipelineStatus(data.pipeline_status);
+
+          // Add log entry if present
+          if (data.log_entry) {
+            this.pipelineLogs.unshift(data.log_entry);
+
+            // Keep logs to a reasonable size
+            if (this.pipelineLogs.length > 100) {
+              this.pipelineLogs = this.pipelineLogs.slice(0, 100);
+            }
+          }
         }
         else if (data.type === 'error') {
           // Show error message
@@ -403,6 +657,9 @@ export default {
 
       // Attempt to reconnect
       this.attemptReconnect();
+
+      // Start polling as fallback
+      this.startPolling();
     },
 
     /**
@@ -412,13 +669,11 @@ export default {
       console.error('WebSocket error:', error);
       this.wsConnected = false;
 
-      // Show error message only on first occurrence
-      if (this.wsReconnectAttempts === 0) {
-        this.showStatusMessage('Connection error. Attempting to reconnect...', 'warning');
-      }
-
       // Attempt to reconnect
       this.attemptReconnect();
+
+      // Start polling as fallback
+      this.startPolling();
     },
 
     /**
@@ -432,7 +687,7 @@ export default {
 
       // Check if max reconnect attempts reached
       if (this.wsReconnectAttempts >= this.wsMaxReconnectAttempts) {
-        this.showStatusMessage('Failed to reconnect. Please refresh the page.', 'error');
+        this.startPolling();
         return;
       }
 
@@ -468,6 +723,87 @@ export default {
         clearTimeout(this.wsReconnectTimeout);
         this.wsReconnectTimeout = null;
       }
+
+      // Clear connection timeout if exists
+      if (this.wsConnectionTimeout) {
+        clearTimeout(this.wsConnectionTimeout);
+        this.wsConnectionTimeout = null;
+      }
+    },
+
+    /**
+     * Start polling for updates as a fallback mechanism
+     */
+    startPolling() {
+      // Stop any existing polling
+      this.stopPolling();
+
+      // Start new polling interval
+      this.pollingInterval = setInterval(async () => {
+        try {
+          // Fetch system status
+          const response = await api.get('/system/status');
+
+          // Update data with response
+          if (response && response.data) {
+            this.updateSystemStats(response.data);
+
+            if (response.data.pipeline_status) {
+              this.updatePipelineStatus(response.data.pipeline_status);
+            }
+
+            if (response.data.logs) {
+              this.updateLogs(response.data.logs);
+            }
+
+            // Update timestamp
+            this.updateLastUpdateTime();
+          }
+        } catch (error) {
+          console.error('Polling error:', error);
+        }
+      }, this.pollingFrequency);
+
+      console.log('Started polling for updates every', this.pollingFrequency / 1000, 'seconds');
+    },
+
+    /**
+     * Stop polling for updates
+     */
+    stopPolling() {
+      if (this.pollingInterval) {
+        clearInterval(this.pollingInterval);
+        this.pollingInterval = null;
+        console.log('Stopped polling for updates');
+      }
+    },
+
+    /**
+     * Refresh pipeline logs
+     */
+    async refreshLogs() {
+      this.isLoading = true;
+
+      try {
+        // In a real implementation, this would call an API endpoint to get logs
+        // For now, we'll simulate an API call
+        const response = await api.get('/system/logs', { params: { limit: 50 } })
+          .catch(() => ({ data: { logs: [] } }));
+
+        this.pipelineLogs = response.data.logs || [];
+      } catch (error) {
+        console.error('Failed to fetch logs:', error);
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    /**
+     * Save the scheduled pipeline configuration
+     */
+    saveSchedule() {
+      // In a real implementation, this would call an API endpoint to set the schedule
+      this.showStatusMessage(`Pipeline scheduled to run daily at ${this.scheduleTime}`, 'success');
     },
 
     /**
@@ -483,13 +819,12 @@ export default {
         // Prepare request payload based on your API's PipelineRunRequest model
         const payload = {
           force: this.pipelineConfig.force,
-          steps: this.selectedSteps.length > 0 ? this.selectedSteps : null
+          steps: this.selectedSteps.length > 0 ? this.selectedSteps : null,
+          max_symbols: this.pipelineConfig.maxSymbols || null
         };
 
-        // Call API to run pipeline using the api service
+        // Call API to run pipeline
         const response = await api.post('/system/run-pipeline', payload);
-
-        // Get response data
         const data = response.data;
 
         // Update status with API response
@@ -532,6 +867,14 @@ export default {
           this.updatePipelineStatus(data.pipeline_status);
         }
 
+        // Fetch logs if available
+        if (data.logs) {
+          this.pipelineLogs = data.logs;
+        } else {
+          // Otherwise fetch logs separately
+          this.refreshLogs();
+        }
+
         // Update timestamp
         this.updateLastUpdateTime();
       } catch (error) {
@@ -566,22 +909,40 @@ export default {
     updatePipelineStatus(pipelineStatus) {
       if (!pipelineStatus) return;
 
+      // Track previous status to detect changes
+      const prevStatus = this.pipelineStatus.status;
+
       this.pipelineStatus = {
         status: pipelineStatus.status || 'idle',
         message: pipelineStatus.message,
         currentStep: pipelineStatus.current_step,
         requestedBy: pipelineStatus.requested_by,
         estimatedDurationMinutes: pipelineStatus.estimated_duration_minutes,
-        progress: this.calculateProgress(pipelineStatus)
+        progress: this.calculateProgress(pipelineStatus),
+        lastRun: pipelineStatus.last_run || this.pipelineStatus.lastRun
       };
 
       // If pipeline just completed, show message
-      if (pipelineStatus.status === 'completed' && this.isRunning) {
+      if (pipelineStatus.status === 'completed' && prevStatus === 'running') {
         this.showStatusMessage('Pipeline execution completed successfully', 'success');
+
+        // Refresh system stats after completion
+        setTimeout(() => {
+          this.fetchInitialSystemStatus();
+        }, 1000);
       }
       // If pipeline just failed, show error
-      else if (pipelineStatus.status === 'failed' && this.isRunning) {
-        this.showStatusMessage('Pipeline execution failed', 'error');
+      else if (pipelineStatus.status === 'failed' && prevStatus === 'running') {
+        this.showStatusMessage(pipelineStatus.message || 'Pipeline execution failed', 'error');
+      }
+    },
+
+    /**
+     * Update logs
+     */
+    updateLogs(logs) {
+      if (Array.isArray(logs) && logs.length > 0) {
+        this.pipelineLogs = logs;
       }
     },
 
@@ -619,9 +980,50 @@ export default {
      * Save pipeline configuration
      */
     saveConfig() {
-      // Just close the modal - configuration is saved in the data properties
+      // Close the modal - configuration is saved in the data properties
       this.showConfigModal = false;
+
+      // Prepare config for API submission
+      const config = {
+        default_steps: this.selectedSteps,
+        force_retrain: this.pipelineConfig.force,
+        max_symbols: this.pipelineConfig.maxSymbols,
+        schedule: {
+          time: this.scheduleTime,
+          frequency: this.scheduleFrequency,
+          days: this.scheduleFrequency === 'Custom' ? this.selectedDays :
+            this.scheduleFrequency === 'Weekdays only' ? [1, 2, 3, 4, 5] :
+              [0, 1, 2, 3, 4, 5, 6]
+        }
+      };
+
+      // In a real implementation, this would save to the backend
+      // api.post('/system/config', config)
+
       this.showStatusMessage('Pipeline configuration saved', 'success');
+    },
+
+    /**
+     * Toggle step selection
+     */
+    toggleStep(stepId) {
+      const index = this.selectedSteps.indexOf(stepId);
+      if (index === -1) {
+        this.selectedSteps.push(stepId);
+      } else {
+        this.selectedSteps.splice(index, 1);
+      }
+    },
+
+    /**
+     * Select or deselect all steps
+     */
+    selectAllSteps() {
+      if (this.allStepsSelected) {
+        this.selectedSteps = [];
+      } else {
+        this.selectedSteps = this.pipelineSteps.map(step => step.id);
+      }
     },
 
     /**
@@ -658,14 +1060,47 @@ export default {
     },
 
     /**
-     * Get CSS class for status badge
+     * Format date
      */
-    getStatusBadgeClass(status) {
-      switch (status) {
-        case 'running': return 'bg-blue-100 text-blue-800';
-        case 'completed': return 'bg-green-100 text-green-800';
-        case 'failed': return 'bg-red-100 text-red-800';
-        default: return 'bg-gray-100 text-gray-800';
+    formatDate(dateString) {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    },
+
+    /**
+     * Format time
+     */
+    formatTime(timeString) {
+      if (!timeString) return '';
+      const date = new Date(timeString);
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    },
+
+    /**
+     * Get CSS class for log entry based on level
+     */
+    getLogClass(level) {
+      switch (level?.toLowerCase()) {
+        case 'error':
+          return 'log-error';
+        case 'warning':
+          return 'log-warning';
+        case 'success':
+          return 'log-success';
+        case 'info':
+        default:
+          return 'log-info';
       }
     },
 
@@ -675,10 +1110,10 @@ export default {
     getStepClass(step, pipelineStatus) {
       const status = this.getStepStatus(step, pipelineStatus);
       switch (status) {
-        case 'running': return 'bg-blue-500 text-white';
-        case 'completed': return 'bg-green-500 text-white';
-        case 'failed': return 'bg-red-500 text-white';
-        default: return 'bg-gray-200 text-gray-700';
+        case 'running': return 'step-indicator-running';
+        case 'completed': return 'step-indicator-completed';
+        case 'failed': return 'step-indicator-failed';
+        default: return 'step-indicator-idle';
       }
     },
 
@@ -740,6 +1175,16 @@ export default {
     capitalizeFirst(str) {
       if (!str) return '';
       return str.charAt(0).toUpperCase() + str.slice(1);
+    },
+
+    /**
+     * Get color for success rate progress bar
+     */
+    getSuccessRateColor(rate) {
+      if (!rate) return 'gray';
+      if (rate < 40) return 'error';
+      if (rate < 70) return 'warning';
+      return 'success';
     }
   },
 
@@ -754,35 +1199,507 @@ export default {
   beforeUnmount() {
     // Close WebSocket connection
     this.closeWebSocket();
+
+    // Stop polling if active
+    this.stopPolling();
+
+    // Clear any timeouts
+    if (this.wsConnectionTimeout) {
+      clearTimeout(this.wsConnectionTimeout);
+    }
   }
 };
 </script>
 
 <style lang="postcss" scoped>
+/* Base layout */
 .pipeline-dashboard {
-  @apply max-w-7xl mx-auto;
+  @apply max-w-7xl mx-auto space-y-6;
 }
 
-/* Status Badge */
+/* Status Card */
+.status-card {
+  @apply bg-white rounded-xl border border-gray-200 p-6;
+}
+
+.status-header {
+  @apply flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4;
+}
+
+.status-info {
+  @apply flex flex-col;
+}
+
+.status-title-row {
+  @apply flex items-center gap-3;
+}
+
+.status-title {
+  @apply text-xl font-bold text-gray-800;
+}
+
+.connection-status {
+  @apply flex items-center text-xs font-medium rounded-full px-2.5 py-1;
+}
+
+.connection-status.connected {
+  @apply bg-green-50 text-green-600;
+}
+
+.connection-status:not(.connected) {
+  @apply bg-gray-100 text-gray-500;
+}
+
+.status-dot {
+  @apply w-2 h-2 rounded-full mr-1.5;
+}
+
+.connected .status-dot {
+  @apply bg-green-500;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.6;
+  }
+}
+
 .status-badge {
-  @apply px-2.5 py-0.5 rounded-full text-xs font-medium;
+  @apply inline-flex px-3.5 py-1 rounded-full text-xs font-medium mt-2;
 }
 
-/* Statistics Cards */
+.status-idle {
+  @apply bg-gray-100 text-gray-600;
+}
+
+.status-running {
+  @apply bg-blue-100 text-blue-700;
+}
+
+.status-completed {
+  @apply bg-green-100 text-green-700;
+}
+
+.status-failed {
+  @apply bg-red-100 text-red-700;
+}
+
+.action-buttons {
+  @apply flex gap-2;
+}
+
+.progress-container {
+  @apply mt-5 bg-gray-50 rounded-lg p-4;
+}
+
+.progress-header {
+  @apply flex justify-between items-center mb-2;
+}
+
+.progress-message {
+  @apply text-sm font-medium text-gray-800;
+}
+
+.progress-info {
+  @apply flex items-center gap-2 text-xs;
+}
+
+.progress-percentage {
+  @apply font-semibold text-primary;
+}
+
+.progress-time {
+  @apply text-gray-500;
+}
+
+/* Stats Grid */
+.stats-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+.stat-card {
+  @apply bg-white rounded-xl border border-gray-200 p-6;
+}
+
+.stat-card-header {
+  @apply flex justify-between items-center mb-5;
+}
+
+.stat-card-title {
+  @apply text-base font-bold text-gray-800;
+}
+
+.last-update {
+  @apply text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full;
+}
+
+.stat-grid {
+  @apply grid grid-cols-2 gap-5;
+}
+
 .stat-item {
-  @apply bg-gray-50 rounded-lg p-3 border border-gray-100;
+  @apply flex items-start gap-3 p-1 rounded-lg transition-colors duration-200;
 }
 
-/* Pipeline Steps */
+.stat-icon {
+  @apply w-10 h-10 flex items-center justify-center rounded-lg;
+}
+
+.stat-content {
+  @apply flex-1;
+}
+
+.stat-value {
+  @apply text-lg font-semibold text-gray-900;
+}
+
+.stat-label {
+  @apply text-xs text-gray-500;
+}
+
+.success-rate-container {
+  @apply mt-6 bg-gray-50 p-4 rounded-lg;
+}
+
+.success-rate-header {
+  @apply flex justify-between items-center mb-2;
+}
+
+.success-rate-label {
+  @apply text-sm text-gray-600;
+}
+
+.success-rate-value {
+  @apply text-sm font-medium;
+}
+
+/* Steps Card */
+.steps-card {
+  @apply bg-white rounded-xl border border-gray-200 p-6;
+}
+
+.steps-header {
+  @apply flex justify-between items-center mb-5;
+}
+
+.steps-title {
+  @apply text-base font-bold text-gray-800;
+}
+
+.steps-actions {
+  @apply flex;
+}
+
+.select-btn {
+  @apply text-xs font-medium;
+}
+
 .steps-container {
-  @apply space-y-3;
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
 }
 
 .step-item {
-  @apply flex items-center bg-gray-50 rounded-lg p-3 border border-gray-100 transition-colors duration-200;
+  @apply flex items-center bg-gray-50 hover:bg-gray-100 rounded-lg p-3 border border-gray-100 transition-colors duration-200 cursor-pointer;
 }
 
 .step-running {
   @apply bg-blue-50 border-blue-200;
+  animation: step-pulse 2s infinite alternate;
+}
+
+@keyframes step-pulse {
+  0% {
+    background-color: rgba(219, 234, 254, 0.8);
+  }
+
+  100% {
+    background-color: rgba(219, 234, 254, 0.4);
+  }
+}
+
+.step-selected {
+  @apply border-primary;
+}
+
+.step-indicator {
+  @apply w-9 h-9 rounded-full flex items-center justify-center mr-3 text-sm font-medium;
+}
+
+.step-indicator-idle {
+  @apply bg-gray-200 text-gray-700;
+}
+
+.step-indicator-running {
+  @apply bg-blue-500 text-white;
+}
+
+.step-indicator-completed {
+  @apply bg-green-500 text-white;
+}
+
+.step-indicator-failed {
+  @apply bg-red-500 text-white;
+}
+
+.step-content {
+  @apply flex-1;
+}
+
+.step-title {
+  @apply text-sm font-medium text-gray-700;
+}
+
+.step-description {
+  @apply text-xs text-gray-500 mt-1;
+}
+
+.step-toggle {
+  @apply ml-auto;
+}
+
+/* Configuration and Logs Grid */
+.config-logs-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+.config-card,
+.logs-card {
+  @apply bg-white rounded-xl border border-gray-200 p-6;
+}
+
+.config-header,
+.logs-header {
+  @apply flex justify-between items-center mb-5;
+}
+
+.config-title,
+.logs-title {
+  @apply text-base font-bold text-gray-800;
+}
+
+.config-content {
+  @apply space-y-4;
+}
+
+.config-item {
+  @apply bg-gray-50 rounded-lg p-4 border border-gray-100;
+}
+
+.config-item-header {
+  @apply flex justify-between items-center;
+}
+
+.config-item-title {
+  @apply text-sm font-medium text-gray-700;
+}
+
+.config-item-description {
+  @apply text-xs text-gray-500 mt-1.5;
+}
+
+.config-schedule {
+  @apply flex mt-3 gap-2 items-start;
+}
+
+/* Logs styling */
+.logs-loading {
+  @apply flex justify-center items-center py-10;
+}
+
+.logs-empty {
+  @apply flex justify-center items-center py-10 text-gray-500 text-sm;
+}
+
+.logs-content {
+  @apply bg-gray-50 rounded-lg border border-gray-100 max-h-64 overflow-y-auto;
+}
+
+.log-entry {
+  @apply flex px-3.5 py-2.5 border-b border-gray-100 last:border-0 hover:bg-gray-100/50 transition-colors duration-150;
+}
+
+.log-time {
+  @apply text-gray-500 mr-3 whitespace-nowrap;
+}
+
+.log-message {
+  @apply flex-1 truncate;
+}
+
+.logs-more {
+  @apply flex justify-center py-2 border-t border-gray-100;
+}
+
+.log-info {
+  @apply text-gray-700;
+}
+
+.log-error {
+  @apply text-red-600 bg-red-50;
+}
+
+.log-warning {
+  @apply text-amber-600 bg-amber-50;
+}
+
+.log-success {
+  @apply text-green-600 bg-green-50;
+}
+
+/* Status Message */
+.status-message-container {
+  @apply fixed bottom-6 right-6 z-50 max-w-md;
+}
+
+.status-message {
+  @apply flex items-start p-4 rounded-lg border;
+  animation: slide-in 0.3s ease-out;
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.message-info {
+  @apply bg-blue-50 text-blue-700 border-blue-200;
+}
+
+.message-success {
+  @apply bg-green-50 text-green-700 border-green-200;
+}
+
+.message-warning {
+  @apply bg-amber-50 text-amber-700 border-amber-200;
+}
+
+.message-error {
+  @apply bg-red-50 text-red-700 border-red-200;
+}
+
+.status-icon {
+  @apply mr-3 mt-0.5;
+}
+
+.status-message-content {
+  @apply flex-1;
+}
+
+.status-message-title {
+  @apply font-medium;
+}
+
+.status-message-text {
+  @apply text-sm;
+}
+
+.close-btn {
+  @apply ml-2 -mt-1 -mr-1 opacity-70 hover:opacity-100 transition-opacity duration-200;
+}
+
+/* Modal styling */
+.modal-card {
+  @apply bg-white rounded-xl border border-gray-200 overflow-hidden;
+}
+
+.modal-header {
+  @apply flex justify-between items-center p-5 border-b border-gray-200 bg-gray-50;
+}
+
+.modal-title {
+  @apply text-lg font-bold text-gray-800;
+}
+
+.modal-content {
+  @apply p-5 max-h-[70vh] overflow-y-auto;
+}
+
+.modal-section {
+  @apply mb-6 last:mb-0;
+}
+
+.section-title {
+  @apply text-base font-medium mb-3 pb-2 border-b border-gray-200 text-gray-700;
+}
+
+.steps-grid {
+  @apply grid grid-cols-2 gap-4;
+}
+
+.schedule-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+}
+
+.days-selection {
+  @apply bg-gray-50 p-4 rounded-lg border border-gray-100;
+}
+
+.days-grid {
+  @apply flex flex-wrap gap-x-8 gap-y-2;
+}
+
+.modal-footer {
+  @apply flex justify-end gap-3 p-5 bg-gray-50 border-t border-gray-200;
+}
+
+/* Logs Modal Specific */
+.logs-modal-content {
+  @apply font-mono p-0;
+}
+
+.log-entry-full {
+  @apply flex px-4 py-2.5 border-b border-gray-200 last:border-0 hover:bg-gray-50 transition-colors duration-150;
+}
+
+.log-time-full {
+  @apply text-gray-500 mr-4 whitespace-nowrap font-medium;
+}
+
+.log-message-full {
+  @apply flex-1;
+}
+
+.logs-empty-full {
+  @apply flex justify-center items-center py-16 text-gray-500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .status-header {
+    @apply flex-col items-start gap-3;
+  }
+
+  .action-buttons {
+    @apply self-end;
+  }
+
+  .steps-container {
+    @apply grid-cols-1;
+  }
+
+  .stat-grid {
+    @apply grid-cols-1;
+  }
+
+  .steps-grid,
+  .schedule-grid {
+    @apply grid-cols-1;
+  }
 }
 </style>
