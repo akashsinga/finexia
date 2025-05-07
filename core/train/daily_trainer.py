@@ -39,7 +39,7 @@ loky_context._count_physical_cores = _fixed_count_physical_cores
 
 def timestamped_log(message: str): 
     """Log message with timestamp."""
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] {message}")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}")
 
 def get_db_session() -> Session:
     """Creates and returns a database session."""
