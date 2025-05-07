@@ -306,6 +306,9 @@ export default {
 
       // Create the chart option
       this.performanceChartOption = {
+        textStyle: {
+          fontFamily: 'Inter'
+        },
         tooltip: {
           trigger: 'axis',
           axisPointer: {
