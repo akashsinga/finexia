@@ -52,7 +52,7 @@ export default {
       default: null
     }
   },
-  emits: ['select', 'select-all'],
+  emits: ['select', 'select-all', 'update:selectedSteps'],
   computed: {
     localSelectedSteps: {
       get() {

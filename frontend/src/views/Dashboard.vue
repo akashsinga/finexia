@@ -29,10 +29,10 @@
         <tr v-for="(prediction, i) in verifiedPredictions" :key="i">
           <td>{{ prediction.trading_symbol }}</td>
           <td :class="prediction.direction_prediction === 'UP' ? 'text-success' : 'text-error'">
-            {{ prediction.direction_prediction }}
+            <v-icon size="large">{{ prediction.direction_prediction === 'UP' ? 'mdi-arrow-up-bold' : 'mdi-arrow-down-bold' }}</v-icon>
           </td>
           <td :class="prediction.actual_direction === 'UP' ? 'text-success' : 'text-error'">
-            {{ prediction.actual_direction }}
+            <v-icon size="large">{{ prediction.actual_direction === 'UP' ? 'mdi-arrow-up-bold' : 'mdi-arrow-down-bold' }}</v-icon>
           </td>
           <td>{{ $filters.formatDate(prediction.date, 'MMM D, YYYY') }}</td>
           <td>{{ prediction.days_to_fulfill }}</td>

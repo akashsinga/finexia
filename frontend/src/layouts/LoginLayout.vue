@@ -132,7 +132,7 @@ export default {
 
 <style lang="postcss" scoped>
 .login-page {
-  @apply min-h-screen w-full flex items-center justify-center bg-gray-50 relative overflow-hidden;
+  @apply min-h-screen w-full flex items-center justify-center relative overflow-hidden;
   background:
     radial-gradient(circle, rgba(30, 58, 138, 0.1) 2px, transparent 2px),
     radial-gradient(circle, rgba(14, 165, 233, 0.1) 2px, transparent 2px);

@@ -15,7 +15,7 @@
           <th v-for="(header, index) in headers" :key="index">{{ header.text }}</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody class="text-xs">
         <slot></slot>
         <tr v-if="isEmpty">
           <td :colspan="headers.length" class="text-center text-gray-500 py-4">{{ emptyMessage }}</td>

@@ -67,7 +67,7 @@ export default {
 
 <style lang="postcss" scoped>
 .stat-card {
-  @apply bg-white p-4 h-full rounded-lg shadow-sm border border-gray-200;
+  @apply bg-white p-4 h-full rounded-lg shadow-sm ring-1 ring-gray-300;
 }
 
 .card-content {
@@ -75,23 +75,23 @@ export default {
 }
 
 .stat-icon {
-  @apply w-12 h-12 rounded-lg flex items-center justify-center mr-4;
+  @apply w-12 h-12 rounded-lg flex items-center justify-center mr-4 ring-1;
 }
 
 .bg-primary-light {
-  @apply bg-primary bg-opacity-10;
+  @apply bg-primary bg-opacity-10 ring-primary;
 }
 
 .bg-success-light {
-  @apply bg-success bg-opacity-10;
+  @apply bg-success bg-opacity-10 ring-success;
 }
 
 .bg-info-light {
-  @apply bg-info bg-opacity-10;
+  @apply bg-info bg-opacity-10 ring-info;
 }
 
 .bg-warning-light {
-  @apply bg-warning bg-opacity-10;
+  @apply bg-warning bg-opacity-10 ring-warning;
 }
 
 .stat-info {

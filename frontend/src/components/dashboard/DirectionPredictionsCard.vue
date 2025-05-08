@@ -56,7 +56,7 @@
             <div class="accuracy-item">
               <div class="accuracy-label">
                 <div class="direction-badge success">
-                  <v-icon size="x-small">mdi-arrow-up-bold</v-icon>
+                  <v-icon size="large">mdi-arrow-up-bold</v-icon>
                 </div>
                 <span>UP accuracy</span>
               </div>
@@ -65,7 +65,7 @@
             <div class="accuracy-item">
               <div class="accuracy-label">
                 <div class="direction-badge error">
-                  <v-icon size="x-small">mdi-arrow-down-bold</v-icon>
+                  <v-icon size="large">mdi-arrow-down-bold</v-icon>
                 </div>
                 <span>DOWN accuracy</span>
               </div>

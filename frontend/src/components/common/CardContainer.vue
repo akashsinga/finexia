@@ -45,15 +45,15 @@ export default {
 
 <style lang="postcss" scoped>
 .card {
-  @apply bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col;
+  @apply bg-white rounded-lg shadow-sm ring-1 ring-gray-300 flex flex-col;
 }
 
 .card-header {
-  @apply flex justify-between items-center px-4 py-3 border-b border-gray-200;
+  @apply flex justify-between items-center px-4 py-2 border-b border-gray-300;
 }
 
 .card-title {
-  @apply text-base font-medium;
+  @apply text-sm font-medium flex items-center;
 }
 
 .card-actions {
