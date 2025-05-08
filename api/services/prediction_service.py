@@ -1,6 +1,7 @@
 # api/services/prediction_service.py - Business logic for prediction operations
 from sqlalchemy.orm import Session
-from datetime import date
+from sqlalchemy import func, Integer
+from datetime import date, datetime, timedelta
 from typing import List, Optional, Dict, Any
 
 from db.models.prediction_results import PredictionResult
@@ -118,7 +119,7 @@ def get_verified_prediction_stats(db: Session, symbol: str = None, start_date: O
 
     # Only include predictions that have been verified
     # query = query.filter(PredictionResult.verified.is_not(False))
-    
+
     # Execute query
     predictions = query.all()
 
@@ -140,3 +141,38 @@ def get_verified_prediction_stats(db: Session, symbol: str = None, start_date: O
     avg_days = sum(days_to_fulfill) / len(days_to_fulfill) if days_to_fulfill else None
 
     return {"totalPredictions": total_count, "verifiedPredictions": verified_count, "accuracy": verified_count / total_count if total_count > 0 else 0.0, "upPredictions": up_count, "downPredictions": down_count, "directionAccuracy": direction_correct / len(direction_predictions) if direction_predictions else None, "avgDaysToFullfill": avg_days}
+
+
+# Add this function to api/services/prediction_service.py
+def get_accuracy_trend(db: Session, lookback_days: int = 7, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Get day-by-day prediction accuracy trend for the specified lookback period"""
+
+    # Calculate date range - possibly longer than lookback_days to ensure we get enough data points
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=lookback_days * 2)  # Double the lookback to account for holidays/weekends
+
+    # Base query to get predictions grouped by date
+    query = db.query(PredictionResult.date, func.count(PredictionResult.id).label("total"), func.sum(func.cast(PredictionResult.verified == True, Integer)).label("correct")).filter(PredictionResult.date >= start_date, PredictionResult.date <= end_date)
+
+    # Apply symbol filter if provided
+    if symbol:
+        query = query.filter(PredictionResult.trading_symbol == symbol)
+
+    # Group by date and order by date
+    results = query.group_by(PredictionResult.date).order_by(PredictionResult.date).all()
+
+    # Format results for chart display - only include days with predictions
+    trend_data = []
+    for result in results:
+        # Skip days with zero predictions
+        if result.total == 0:
+            continue
+
+        accuracy = (result.correct / result.total) if result.total > 0 else 0
+        trend_data.append({"date": result.date.isoformat(), "total": result.total, "correct": result.correct, "accuracy": round(accuracy, 4)})
+
+    # Limit to the most recent lookback_days data points
+    if len(trend_data) > lookback_days:
+        trend_data = trend_data[-lookback_days:]
+
+    return trend_data

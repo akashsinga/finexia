@@ -278,44 +278,29 @@ export const usePredictionStore = defineStore('prediction', {
      * @param {string} period - Time period (e.g., '30d')
      * @returns {Object} Accuracy trend data for charts
      */
-    async fetchAccuracyTrend(period = '30d') {
+    async fetchAccuracyTrend(period = 30) {
       this.loading.accuracyTrend = true;
 
       try {
         // In a production environment, this would call an API endpoint:
-        // const response = await api.get(`/predictions/accuracy/trend?period=${period}`);
+        const response = await api.get(`/predictions/trend/accuracy?lookback_days=${period}`);
 
-        // For now, simulate the API response with mock data
-        return new Promise(resolve => {
-          setTimeout(() => {
-            const labels = [];
-            const data = [];
-            const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
+        let dates = response.data.map((trend) => trend.date)
+        let data = response.data.map((trend) => trend.accuracy)
 
-            const now = new Date();
-            for (let i = days - 1; i >= 0; i--) {
-              const date = new Date(now);
-              date.setDate(date.getDate() - i);
-              labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-              data.push(0.7 + Math.random() * 0.2);
-            }
+        this.accuracyTrend = {
+          labels: dates,
+          datasets: [{
+            label: 'Prediction Accuracy',
+            data: data,
+            borderColor: '#1E3A8A',
+            backgroundColor: 'rgba(30, 58, 138, 0.1)',
+            tension: 0.3,
+            fill: true
+          }]
+        };
 
-            this.accuracyTrend = {
-              labels,
-              datasets: [{
-                label: 'Prediction Accuracy',
-                data,
-                borderColor: '#1E3A8A',
-                backgroundColor: 'rgba(30, 58, 138, 0.1)',
-                tension: 0.3,
-                fill: true
-              }]
-            };
-
-            this.loading.accuracyTrend = false;
-            resolve(this.accuracyTrend);
-          }, 800);
-        });
+        this.loading.accuracyTrend = false;
       } catch (error) {
         console.error('Error fetching accuracy trend:', error);
         this.error = error.message || 'Failed to fetch accuracy trend';

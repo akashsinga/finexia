@@ -93,7 +93,7 @@ export default {
 
   data: function () {
     return {
-      accuracyPeriod: '30d',
+      accuracyPeriod: 7,
       accuracyChartOptions: {
         responsive: true,
         maintainAspectRatio: false,
@@ -133,9 +133,9 @@ export default {
         cutout: '70%'
       },
       timePeriods: [
-        { label: 'Last 7 Days', value: '7d' },
-        { label: 'Last 30 Days', value: '30d' },
-        { label: 'Last 90 Days', value: '90d' }
+        { label: 'Last 7 Days', value: 7 },
+        { label: 'Last 30 Days', value: 30 },
+        { label: 'Last 90 Days', value: 90 }
       ],
       verifiedPredictionsHeaders: [
         { text: 'Symbol', value: 'trading_symbol' },

@@ -1,14 +1,14 @@
 # api/routers/predictions.py
 
 from fastapi import APIRouter, HTTPException, Path, Query, Depends, status
-from typing import Optional
+from typing import Optional, List, Any, Dict
 from datetime import date
 from sqlalchemy.orm import Session
 
 from api.models.prediction import PredictionResponse, PredictionList, PredictionFilter, RefreshPredictionRequest, PredictionStats
 from api.dependencies.db import get_db
 from api.dependencies.auth import get_current_user
-from api.services.prediction_service import get_latest_prediction, get_predictions_by_date, refresh_prediction, get_verified_prediction_stats, get_prediction_summary_symbol
+from api.services.prediction_service import get_latest_prediction, get_predictions_by_date, refresh_prediction, get_verified_prediction_stats, get_prediction_summary_symbol, get_accuracy_trend
 
 router = APIRouter()
 
@@ -20,6 +20,18 @@ async def get_prediction_for_symbol(symbol: str = Path(..., description="Trading
     if not prediction:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No prediction found for {symbol}")
     return prediction
+
+
+@router.get("/trend/accuracy", response_model=List[Dict[str, Any]])
+async def get_prediction_accuracy_trend(lookback_days: int = Query(7, description="Number of days to look back"), symbol: Optional[str] = Query(None, description="Filter by trading symbol"), db: Session = Depends(get_db)):
+    """Get day-by-day prediction accuracy trend for charting"""
+    trend_data = get_accuracy_trend(db, lookback_days, symbol)
+
+    # Return empty list if no data found
+    if not trend_data:
+        return []
+
+    return trend_data
 
 
 @router.get("/summary/{symbol}", response_model=dict)
