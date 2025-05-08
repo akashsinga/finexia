@@ -86,7 +86,7 @@
 
               <div class="flex justify-between mb-6">
                 <div class="text-center">
-                  <div class="text-2xl font-bold text-primary">{{ (predictionStats.accuracy * 100).toFixed(1) }}%</div>
+                  <div class="text-2xl font-bold text-primary">{{ formatPercentage(predictionStats.accuracy) }}</div>
                   <div class="text-xs text-gray-500">Accuracy</div>
                 </div>
                 <div class="text-center">
@@ -115,14 +115,14 @@
                     <v-icon size="x-small">mdi-arrow-up-bold</v-icon>
                   </div>
                   <span class="mr-1">UP ({{ predictionStats.upPredictions || 0 }})</span>
-                  <span class="text-success ml-auto">{{ ((predictionStats.upAccuracy || 0) * 100).toFixed(1) }}% accurate</span>
+                  <span class="text-success ml-auto">{{ formatPercentage(predictionStats.upAccuracy) }} accurate</span>
                 </div>
                 <div class="flex items-center text-xs">
                   <div class="h-4 w-4 rounded-full bg-error/10 flex items-center justify-center text-error mr-2">
                     <v-icon size="x-small">mdi-arrow-down-bold</v-icon>
                   </div>
                   <span class="mr-1">DOWN ({{ predictionStats.downPredictions || 0 }})</span>
-                  <span class="text-error ml-auto">{{ ((predictionStats.downAccuracy || 0) * 100).toFixed(1) }}% accurate</span>
+                  <span class="text-error ml-auto">{{ formatPercentage(predictionStats.downAccuracy) }} accurate</span>
                 </div>
               </div>
 
@@ -204,13 +204,13 @@
                   <td>{{ prediction.type }}</td>
                   <td>
                     <div class="direction-chip" :class="prediction.direction === 'UP' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'">
-                      <v-icon size="x-small">{{ prediction.direction === 'UP' ? 'mdi-arrow-up-bold' : 'mdi-arrow-down-bold' }}</v-icon>
+                      <v-icon size="x-small">{{ getDirectionIcon(prediction.direction) }}</v-icon>
                       {{ prediction.direction }}
                     </div>
                   </td>
                   <td>
                     <div class="flex items-center">
-                      <div class="text-xs mr-2 w-10">{{ (prediction.confidence * 100).toFixed(0) }}%</div>
+                      <div class="text-xs mr-2 w-10">{{ formatPercentage(prediction.confidence) }}</div>
                       <div class="w-24 bg-gray-200 rounded-full h-1.5 overflow-hidden">
                         <div :class="prediction.direction === 'UP' ? 'bg-success' : 'bg-error'" class="h-full" :style="{ width: `${prediction.confidence * 100}%` }"></div>
                       </div>
@@ -223,7 +223,7 @@
                   </td>
                   <td>
                     <div v-if="prediction.actual" class="direction-chip" :class="prediction.actual === 'UP' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'">
-                      <v-icon size="x-small">{{ prediction.actual === 'UP' ? 'mdi-arrow-up-bold' : 'mdi-arrow-down-bold' }}</v-icon>
+                      <v-icon size="x-small">{{ getDirectionIcon(prediction.actual) }}</v-icon>
                       {{ prediction.actual }}
                     </div>
                     <div v-else>-</div>
@@ -281,6 +281,16 @@ import LineChart from '@/components/charts/LineChart.vue';
 import { useSymbolStore } from '@/store/symbol.store';
 import { usePredictionStore } from '@/store/prediction.store';
 import { useHistoricalStore } from '@/store/historical.store';
+import {
+  formatDate,
+  formatNumber,
+  formatPercentage,
+  getSymbolBadgeClass,
+  getInstrumentClass,
+  getStatusChipClass,
+  getDirectionIcon,
+  getDateRangeForPeriod
+} from '@/utils';
 
 export default {
   name: 'SymbolDetails',
@@ -302,17 +312,6 @@ export default {
         { label: '6M', value: '6M' },
         { label: '1Y', value: '1Y' },
       ],
-      priceChartData: {
-        labels: [],
-        datasets: [{
-          label: 'Price',
-          data: [],
-          borderColor: '#1E3A8A',
-          backgroundColor: 'rgba(30, 58, 138, 0.1)',
-          tension: 0.3,
-          fill: true
-        }]
-      },
       priceChartOptions: {
         responsive: true,
         maintainAspectRatio: false,
@@ -330,8 +329,6 @@ export default {
         upAccuracy: 0,
         downAccuracy: 0
       },
-      latestEOD: null,
-      // Mock data for latest predictions, replace with actual API calls
       latestPredictions: [
         {
           date: '2025-04-01',
@@ -373,16 +370,36 @@ export default {
     };
   },
   computed: {
+    // Get price chart data from historical store
+    priceChartData() {
+      return this.historicalStore.chartData;
+    },
+
+    // Get latest EOD data from historical store
+    latestEOD() {
+      return this.historicalStore.latestEOD;
+    },
+
     upPercentage() {
       if (this.predictionStats.totalPredictions === 0) return 50;
       return Math.round((this.predictionStats.upPredictions / this.predictionStats.totalPredictions) * 100);
     },
+
     downPercentage() {
       if (this.predictionStats.totalPredictions === 0) return 50;
       return Math.round((this.predictionStats.downPredictions / this.predictionStats.totalPredictions) * 100);
     }
   },
   methods: {
+    // Import utility functions to use in template
+    formatDate,
+    formatNumber,
+    formatPercentage,
+    getSymbolBadgeClass,
+    getInstrumentClass,
+    getStatusChipClass,
+    getDirectionIcon,
+
     fetchSymbolData: async function () {
       try {
         await this.symbolStore.fetchSymbolByTradingSymbol(this.$route.params.symbol);
@@ -391,106 +408,23 @@ export default {
         console.error('Error fetching symbol data:', error);
       }
     },
+
     fetchHistoricalData: async function () {
-      const { from_date, to_date } = this.getDateRange()
-      let dates, data
       try {
+        const { from_date, to_date } = getDateRangeForPeriod(this.currentPeriod);
         await this.historicalStore.fetchHistoricalEODData(this.$route.params.symbol, { from_date, to_date });
-        let latestEOD = this.historicalStore.eod_data[0]
-        let prevClose = this.historicalStore.eod_data[1] ? this.historicalStore.eod_data[1].close : latestEOD.close;
-        this.latestEOD = {
-          date: latestEOD.date,
-          open: latestEOD.open,
-          high: latestEOD.high,
-          low: latestEOD.low,
-          close: latestEOD.close,
-          volume: latestEOD.volume,
-          change: prevClose ? ((latestEOD.close - prevClose) / prevClose) * 100 : 0
-        }
-        dates = this.historicalStore.eod_data.map((eod_data) => this.formatDate(eod_data.date, 'MMM D'))
-        data = this.historicalStore.eod_data.map((eod_data) => eod_data.close)
       } catch (error) {
         console.error('Error fetching historical data:', error);
       }
-      this.priceChartData = {
-        labels: dates ? dates.reverse() : [],
-        datasets: [{
-          label: 'Price',
-          data: data ? data.reverse() : [],
-          borderColor: '#1E3A8A',
-          backgroundColor: 'rgba(30, 58, 138, 0.1)',
-          tension: 0.3,
-          fill: true
-        }]
-      };
     },
+
     fetchPredictionSummary: async function () {
       try {
-        const predictionSummary = await this.predictionStore.fetchPredictionStatsBySymbol(this.$route.params.symbol)
-        this.predictionStats = predictionSummary
+        const predictionSummary = await this.predictionStore.fetchPredictionStatsBySymbol(this.$route.params.symbol);
+        this.predictionStats = predictionSummary;
       } catch (error) {
         console.error('Error fetching prediction data:', error);
       }
-    },
-    getDateRange: function () {
-      const to_date = new Date()
-      let from_date = new Date()
-
-      switch (this.currentPeriod) {
-        case '1W':
-          from_date.setDate(to_date.getDate() - 7)
-          break
-        case '1M':
-          from_date.setMonth(to_date.getMonth() - 1)
-          break
-        case '3M':
-          from_date.setMonth(to_date.getMonth() - 3)
-          break
-        case '6M':
-          from_date.setMonth(to_date.getMonth() - 6)
-          break
-        case '1Y':
-          from_date.setFullYear(to_date.getFullYear() - 1)
-          break
-      }
-
-      // Format as YYYY-MM-DD
-      const format = (date) => date.toISOString().split('T')[0]
-
-      return { from_date: format(from_date), to_date: format(to_date) }
-    },
-    formatDate(dateString, format = 'MMM D, YYYY') {
-      if (!dateString) return 'N/A';
-      return this.$filters.formatDate(dateString, format);
-    },
-    formatNumber(num) {
-      return new Intl.NumberFormat('en-IN').format(num);
-    },
-    getSymbolBadgeClass(type) {
-      const classes = {
-        'EQUITY': 'bg-blue-600',
-        'FNO': 'bg-purple-600',
-        'OPT': 'bg-orange-500',
-        'ETF': 'bg-green-600',
-        'INDEX': 'bg-cyan-600'
-      };
-      return classes[type] || 'bg-gray-500';
-    },
-    getInstrumentClass(type) {
-      const classes = {
-        'EQUITY': 'bg-blue-600',
-        'FNO': 'bg-purple-600',
-        'OPT': 'bg-orange-500',
-        'ETF': 'bg-green-600',
-        'INDEX': 'bg-cyan-600'
-      };
-      return classes[type] || 'bg-gray-500';
-    },
-    getStatusChipClass(status) {
-      if (status === 'VERIFIED') return 'bg-green-100 text-green-700';
-      if (status === 'FAILED') return 'bg-red-100 text-red-700';
-      if (status === 'PENDING') return 'bg-yellow-100 text-yellow-700';
-      return 'bg-gray-100 text-gray-700';
     }
   },
   mounted() {

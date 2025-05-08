@@ -18,17 +18,35 @@ export const useSystemStore = defineStore('system', {
       modelDirectorySizeMb: 0,
       modelFileCount: 0
     },
-    pipelineStatus: null,
+    pipelineStatus: {
+      status: 'idle',
+      message: null,
+      currentStep: null,
+      progress: 0,
+      requestedBy: null,
+      estimatedDurationMinutes: null,
+      lastRun: null
+    },
+    pipelineLogs: [],
     lastUpdateTime: 'Never',
     loading: false,
     error: null
   }),
 
   getters: {
-    isPipelineRunning: (state) => state.pipelineStatus?.status === 'running'
+    isPipelineRunning: (state) => state.pipelineStatus?.status === 'running',
+
+    formattedModelStorageSize: (state) => {
+      const size = state.stats.modelDirectorySizeMb || 0;
+      if (size < 1) {
+        return `${(size * 1024).toFixed(0)} KB`;
+      }
+      return `${size.toFixed(1)} MB`;
+    }
   },
 
   actions: {
+    // Fetch system status via HTTP
     async fetchSystemStatus() {
       this.loading = true;
       this.error = null;
@@ -37,48 +55,20 @@ export const useSystemStore = defineStore('system', {
         const response = await api.get('/system/status');
         const data = response.data;
 
-        // Update system stats
-        this.stats = {
-          status: data.status || 'offline',
-          serverTime: data.server_time,
-          databaseStatus: data.database_status || 'disconnected',
-          totalPredictions: data.total_predictions || 0,
-          todayPredictions: data.today_predictions || 0,
-          yesterdayPredictions: data.yesterday_predictions || 0,
-          verifiedPredictions: data.verified_predictions || 0,
-          verifiedPredictionPercent: data.verified_prediction_percent || 0,
-          directionPredictions: data.direction_predictions || 0,
-          recentModelTrainingCount: data.recent_model_training_count || 0,
-          modelDirectorySizeMb: data.model_directory_size_mb || 0,
-          modelFileCount: data.model_file_count || 0
-        };
+        this.updateSystemStats(data);
 
-        // Update pipeline status if it exists
         if (data.pipeline_status) {
-          this.pipelineStatus = {
-            status: data.pipeline_status.status,
-            message: data.pipeline_status.message,
-            startTime: data.pipeline_status.start_time,
-            requestedBy: data.pipeline_status.requested_by,
-            estimatedDurationMinutes: data.pipeline_status.estimated_duration_minutes,
-            progress: this.calculateProgress(data.pipeline_status),
-            steps: data.pipeline_status.steps || [],
-            currentStep: this.getCurrentStep(data.pipeline_status)
-          };
-        } else {
-          // Reset pipeline status if no active pipeline
-          this.pipelineStatus = {
-            status: 'idle',
-            progress: 0
-          };
+          this.updatePipelineStatus(data.pipeline_status);
         }
 
-        // Update last refresh time
-        this.updateLastRefreshTime();
+        if (data.logs) {
+          this.updateLogs(data.logs);
+        }
 
+        this.updateLastRefreshTime();
         return this.stats;
       } catch (error) {
-        console.error('Error fetching system status:', error);
+        console.error('Failed to fetch system status:', error);
         this.error = error.message || 'Failed to fetch system status';
         throw error;
       } finally {
@@ -86,56 +76,59 @@ export const useSystemStore = defineStore('system', {
       }
     },
 
-    /**
-     * Trigger a pipeline run with the specified configuration
-     * @param {Object} config The pipeline configuration
-     * @param {boolean} config.force Whether to force retraining
-     * @param {Array<string>} config.steps Which pipeline steps to run
-     * @returns {Promise} Promise that resolves when the pipeline starts
-     */
-    async triggerPipelineRun(config) {
-      this.loading = true;
-      this.error = null;
+    // Update system statistics
+    updateSystemStats(data) {
+      this.stats = {
+        status: data.status || 'offline',
+        serverTime: data.server_time,
+        databaseStatus: data.database_status || 'disconnected',
+        totalPredictions: data.total_predictions || 0,
+        todayPredictions: data.today_predictions || 0,
+        yesterdayPredictions: data.yesterday_predictions || 0,
+        verifiedPredictions: data.verified_predictions || 0,
+        verifiedPredictionPercent: data.verified_prediction_percent || 0,
+        directionPredictions: data.direction_predictions || 0,
+        recentModelTrainingCount: data.recent_model_training_count || 0,
+        modelDirectorySizeMb: data.model_directory_size_mb || 0,
+        modelFileCount: data.model_file_count || 0
+      };
+    },
 
-      try {
-        // Setup pipeline request payload
-        const payload = {
-          force: config.force || false,
-          steps: config.steps || null
-        };
+    // Update pipeline status
+    updatePipelineStatus(pipelineStatus) {
+      if (!pipelineStatus) return;
 
-        // Call API to trigger pipeline
-        const response = await api.post('/system/run-pipeline', payload);
-        const data = response.data;
+      this.pipelineStatus = {
+        status: pipelineStatus.status || 'idle',
+        message: pipelineStatus.message,
+        currentStep: pipelineStatus.current_step,
+        requestedBy: pipelineStatus.requested_by,
+        estimatedDurationMinutes: pipelineStatus.estimated_duration_minutes,
+        progress: this.calculateProgress(pipelineStatus),
+        lastRun: pipelineStatus.last_run || this.pipelineStatus.lastRun
+      };
+    },
 
-        // Update pipeline status with response data
-        this.pipelineStatus = {
-          status: 'running',
-          message: data.message,
-          startTime: data.start_time,
-          requestedBy: data.requested_by,
-          estimatedDurationMinutes: data.estimated_duration_minutes,
-          progress: 0,
-          steps: data.steps || [],
-          currentStep: data.steps && data.steps.length > 0 ? data.steps[0] : null
-        };
-
-        this.updateLastRefreshTime();
-        return data;
-      } catch (error) {
-        console.error('Error triggering pipeline:', error);
-        this.error = error.message || 'Failed to trigger pipeline';
-        throw error;
-      } finally {
-        this.loading = false;
+    // Update logs
+    updateLogs(logs) {
+      if (Array.isArray(logs) && logs.length > 0) {
+        this.pipelineLogs = logs;
       }
     },
 
-    /**
-     * Calculate progress percentage from pipeline status
-     * @param {Object} pipelineStatus The pipeline status object
-     * @returns {number} Progress percentage (0-100)
-     */
+    // Refresh logs
+    async refreshLogs(limit = 50) {
+      try {
+        const response = await api.get('/system/logs', { params: { limit } });
+        this.pipelineLogs = response.data.logs || [];
+        return this.pipelineLogs;
+      } catch (error) {
+        console.error('Failed to fetch logs:', error);
+        throw error;
+      }
+    },
+
+    // Calculate progress percentage
     calculateProgress(pipelineStatus) {
       // If the API provides a progress value, use it
       if (pipelineStatus.progress !== undefined) {
@@ -159,26 +152,65 @@ export const useSystemStore = defineStore('system', {
         return Math.min(99, (elapsed / totalDuration) * 100);
       }
 
-      // Default indeterminate progress
+      // Default to indeterminate progress
       return 0;
     },
 
-    /**
-     * Extract current step from pipeline status
-     * @param {Object} pipelineStatus The pipeline status object
-     * @returns {string|null} Current step name or null
-     */
-    getCurrentStep(pipelineStatus) {
-      if (pipelineStatus.current_step) {
-        return pipelineStatus.current_step;
-      }
+    // Run pipeline
+    async runPipeline(config = {}) {
+      this.loading = true;
+      this.error = null;
 
-      return null;
+      try {
+        // Prepare request payload
+        const payload = {
+          force: config.force || false,
+          steps: config.steps || null,
+          max_symbols: config.maxSymbols || null
+        };
+
+        // Call API to trigger pipeline
+        const response = await api.post('/system/run-pipeline', payload);
+        const data = response.data;
+
+        // Update status
+        this.updatePipelineStatus({
+          status: 'running',
+          message: data.message,
+          start_time: data.start_time,
+          requested_by: data.requested_by,
+          estimated_duration_minutes: data.estimated_duration_minutes,
+          steps: data.steps || []
+        });
+
+        return data;
+      } catch (error) {
+        console.error('Failed to start pipeline:', error);
+        this.error = error.message || 'Failed to start pipeline';
+        throw error;
+      } finally {
+        this.loading = false;
+      }
     },
 
-    /**
-     * Update the last refresh timestamp
-     */
+    // Update system settings
+    async updateSystemSettings(settings) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const response = await api.post('/system/settings', settings);
+        return response.data;
+      } catch (error) {
+        console.error('Failed to update system settings:', error);
+        this.error = error.message || 'Failed to update system settings';
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // Update last refresh timestamp
     updateLastRefreshTime() {
       const now = new Date();
       this.lastUpdateTime = now.toLocaleTimeString([], {
