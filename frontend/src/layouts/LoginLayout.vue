@@ -1,4 +1,3 @@
-<!-- src/views/Login.vue -->
 <template>
   <div class="login-page">
     <div class="login-container">
@@ -88,7 +87,6 @@ import { useAuthStore } from '@/store/auth.store'
 
 export default {
   name: 'LoginView',
-
   data() {
     return {
       username: '',
@@ -99,15 +97,13 @@ export default {
       error: null
     }
   },
-
   computed: {
     authStore() {
       return useAuthStore()
     }
   },
-
   methods: {
-    handleLogin: async function () {
+    async handleLogin() {
       if (!this.username || !this.password) return
 
       this.loading = true
@@ -122,8 +118,7 @@ export default {
         this.loading = false
       }
     },
-
-    goToRegister: function () {
+    goToRegister() {
       this.$router.push('/register')
     }
   }

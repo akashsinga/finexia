@@ -7,6 +7,16 @@ export const useSymbolStore = defineStore('symbol', {
     symbols: [],
     selectedSymbol: null,
     symbolDetails: {},
+    filteredSymbols: [],
+    pagination: {
+      currentPage: 1,
+      pageSize: 24,
+      totalItems: 0
+    },
+    filters: {
+      searchQuery: '',
+      filterType: 'all', // 'all' or 'fo'
+    },
     loading: false,
     loadingDetails: false,
     error: null
@@ -36,22 +46,104 @@ export const useSymbolStore = defineStore('symbol', {
      */
     getSymbolCount: (state) => {
       return state.symbols.length;
+    },
+
+    /**
+     * Get paginated symbols based on current filters
+     */
+    paginatedSymbols: (state) => {
+      const startIndex = (state.pagination.currentPage - 1) * state.pagination.pageSize;
+      const endIndex = startIndex + state.pagination.pageSize;
+      return state.filteredSymbols.slice(startIndex, endIndex);
+    },
+
+    /**
+     * Get total pages based on filtered items and page size
+     */
+    totalPages: (state) => {
+      return Math.ceil(state.filteredSymbols.length / state.pagination.pageSize);
     }
   },
 
   actions: {
     /**
+     * Apply filters to symbols (search and type filter)
+     */
+    applyFilters() {
+      let result = [...this.symbols];
+
+      // Apply search filter
+      if (this.filters.searchQuery.trim()) {
+        const query = this.filters.searchQuery.toLowerCase();
+        result = result.filter(
+          symbol =>
+            symbol.trading_symbol.toLowerCase().includes(query) ||
+            symbol.name.toLowerCase().includes(query)
+        );
+      }
+
+      // Apply F&O filter
+      if (this.filters.filterType === 'fo') {
+        result = result.filter(symbol => symbol.fo_eligible);
+      }
+
+      // Update filtered symbols
+      this.filteredSymbols = result;
+      this.pagination.totalItems = result.length;
+
+      // Reset to first page when filters change
+      this.pagination.currentPage = 1;
+    },
+
+    /**
+     * Update the current page
+     */
+    setPage(page) {
+      this.pagination.currentPage = page;
+    },
+
+    /**
+     * Update the search query and reapply filters
+     */
+    setSearchQuery(query) {
+      this.filters.searchQuery = query;
+      this.applyFilters();
+    },
+
+    /**
+     * Update the filter type and reapply filters
+     */
+    setFilterType(type) {
+      this.filters.filterType = type;
+      this.applyFilters();
+    },
+
+    /**
+     * Reset all filters to default values
+     */
+    resetFilters() {
+      this.filters.searchQuery = '';
+      this.filters.filterType = 'all';
+      this.pagination.currentPage = 1;
+      this.applyFilters();
+    },
+
+    /**
      * Fetch all symbols with optional filtering
      * @param {Object} params - Query parameters for filtering
      * @returns {Array} Array of symbol objects
      */
-    fetchSymbols: async function (params = { active_only: true }) {
+    async fetchSymbols(params = { active_only: true }) {
       this.loading = true;
       this.error = null;
 
       try {
         const response = await api.get('/symbols', { params });
         this.symbols = response.data;
+
+        // Apply filters to update filteredSymbols
+        this.applyFilters();
+
         return this.symbols;
       } catch (error) {
         console.error('Error fetching symbols:', error);
@@ -68,7 +160,7 @@ export const useSymbolStore = defineStore('symbol', {
      * @param {string} exchange - Exchange code (default: 'NSE')
      * @returns {Object} Symbol details
      */
-    fetchSymbolByTradingSymbol: async function (tradingSymbol, exchange = 'NSE') {
+    async fetchSymbolByTradingSymbol(tradingSymbol, exchange = 'NSE') {
       this.loadingDetails = true;
       this.error = null;
 
@@ -94,7 +186,7 @@ export const useSymbolStore = defineStore('symbol', {
      * @param {string} tradingSymbol - Trading symbol to get details for
      * @returns {Promise<Object>} Symbol details
      */
-    getSymbolDetails: async function (tradingSymbol) {
+    async getSymbolDetails(tradingSymbol) {
       // Check if we already have the details cached
       if (this.symbolDetails[tradingSymbol]) {
         this.selectedSymbol = this.symbolDetails[tradingSymbol];
@@ -131,37 +223,70 @@ export const useSymbolStore = defineStore('symbol', {
     clearSymbols() {
       this.symbols = [];
       this.symbolDetails = {};
+      this.filteredSymbols = [];
     },
 
     /**
-     * Search symbols by name or trading symbol
-     * @param {string} query - Search query
-     * @returns {Array} Filtered array of symbol objects
+     * Get instrument type color for UI
+     * @param {string} type - Instrument type
+     * @returns {string} Color code for the type
      */
-    searchSymbols(query) {
-      if (!query || !query.trim()) {
-        return this.symbols;
-      }
-
-      const normalizedQuery = query.toLowerCase().trim();
-
-      return this.symbols.filter(symbol =>
-        symbol.trading_symbol.toLowerCase().includes(normalizedQuery) ||
-        symbol.name.toLowerCase().includes(normalizedQuery)
-      );
+    getInstrumentTypeColor(type) {
+      const colorMap = {
+        'EQUITY': 'blue',
+        'FUT': 'purple',
+        'OPT': 'orange',
+        'ETF': 'green',
+        'INDEX': 'cyan'
+      };
+      return colorMap[type] || 'grey';
     },
 
     /**
-     * Filter symbols by F&O eligibility
-     * @param {boolean} eligible - Whether to filter for eligible symbols
-     * @returns {Array} Filtered array of symbol objects
+     * Get CSS class for symbol badge
+     * @param {string} type - Instrument type
+     * @returns {string} CSS class for the badge
      */
-    filterByFOEligibility(eligible) {
-      if (eligible === null || eligible === undefined) {
-        return this.symbols;
-      }
+    getSymbolBadgeClass(type) {
+      const classMap = {
+        'EQUITY': 'badge-eq',
+        'FUT': 'badge-fut',
+        'OPT': 'badge-opt',
+        'ETF': 'badge-etf',
+        'INDEX': 'badge-index'
+      };
+      return classMap[type] || '';
+    },
 
-      return this.symbols.filter(symbol => symbol.fo_eligible === eligible);
+    /**
+     * Get CSS class for instrument pill
+     * @param {string} type - Instrument type
+     * @returns {string} CSS class for the pill
+     */
+    getInstrumentPillClass(type) {
+      const classMap = {
+        'EQUITY': 'pill-eq',
+        'FUT': 'pill-fut',
+        'OPT': 'pill-opt',
+        'ETF': 'pill-etf',
+        'INDEX': 'pill-index'
+      };
+      return classMap[type] || '';
+    },
+
+    /**
+     * Format date for display
+     * @param {string} dateString - Date string to format
+     * @returns {string} Formatted date string
+     */
+    formatDate(dateString) {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
     }
   }
 });

@@ -1,3 +1,4 @@
+// src/services/websocket.service.js
 export class WebSocketService {
   constructor(url, callbacks = {}) {
     this.url = url;
@@ -51,7 +52,15 @@ export class WebSocketService {
   }
 
   handleMessage(event) {
-    this.onMessage(event);
+    let data;
+    try {
+      data = JSON.parse(event.data);
+    } catch (e) {
+      console.error('Error parsing WebSocket message:', e);
+      data = event.data;
+    }
+
+    this.onMessage({ data, originalEvent: event });
   }
 
   handleClose(event) {
@@ -112,5 +121,14 @@ export class WebSocketService {
 
   isConnected() {
     return this.connected;
+  }
+
+  sendMessage(message) {
+    if (this.connection && this.connected) {
+      const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+      this.connection.send(messageStr);
+      return true;
+    }
+    return false;
   }
 }

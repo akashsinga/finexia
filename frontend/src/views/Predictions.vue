@@ -5,7 +5,7 @@
       <div class="filter-header">
         <h1 class="page-title">Predictions</h1>
         <div class="filter-actions">
-          <v-btn color="primary" size="small" prepend-icon="mdi-refresh" @click="refreshPredictions" :loading="loading.predictions">
+          <v-btn color="primary" size="small" prepend-icon="mdi-refresh" @click="refreshPredictions" :loading="predictionStore.loading.predictions">
             Refresh
           </v-btn>
         </div>
@@ -14,28 +14,28 @@
       <div class="filter-form">
         <div class="filter-row">
           <div class="filter-group">
-            <v-select v-model="filters.direction" label="Direction" :items="directionOptions" density="compact" variant="outlined" hide-details class="filter-input"></v-select>
+            <v-select v-model="direction" label="Direction" :items="directionOptions" density="compact" variant="outlined" hide-details class="filter-input"></v-select>
           </div>
           <div class="filter-group">
-            <v-select v-model="filters.verified" label="Status" :items="verificationOptions" density="compact" variant="outlined" hide-details class="filter-input"></v-select>
+            <v-select v-model="verified" label="Status" :items="verificationOptions" density="compact" variant="outlined" hide-details class="filter-input"></v-select>
           </div>
           <div class="filter-group">
-            <v-select v-model="filters.foEligible" label="F&O Eligible" :items="foEligibleOptions" density="compact" variant="outlined" hide-details class="filter-input"></v-select>
+            <v-select v-model="foEligible" label="F&O Eligible" :items="foEligibleOptions" density="compact" variant="outlined" hide-details class="filter-input"></v-select>
           </div>
           <div class="filter-group date-filter">
             <v-menu v-model="datePickerOpen" :close-on-content-click="false" transition="scale-transition" min-width="auto">
               <template v-slot:activator="{ props }">
-                <v-text-field v-model="formattedDateFilter" label="Prediction Date" prepend-inner-icon="mdi-calendar" readonly variant="outlined" density="compact" hide-details v-bind="props" class="filter-input" clearable @click:clear="filters.predictionDate = null"></v-text-field>
+                <v-text-field v-model="dateFilterDisplay" label="Prediction Date" prepend-inner-icon="mdi-calendar" readonly variant="outlined" density="compact" hide-details v-bind="props" class="filter-input" clearable @click:clear="predictionDate = null"></v-text-field>
               </template>
-              <v-date-picker v-model="filters.predictionDate" @update:model-value="datePickerOpen = false"></v-date-picker>
+              <v-date-picker v-model="predictionDate" @update:model-value="datePickerOpen = false"></v-date-picker>
             </v-menu>
           </div>
         </div>
 
         <div class="filter-row">
           <div class="confidence-filter">
-            <div class="confidence-label">Confidence Threshold: {{ filters.minConfidence * 100 }}%</div>
-            <v-slider v-model="filters.minConfidence" min="0" max="1" step="0.05" thumb-label :thumb-size="20" hide-details density="compact" color="primary" track-color="primary-lighten-3" :thumb-label-formatter="val => Math.round(val * 100) + '%'"></v-slider>
+            <div class="confidence-label">Confidence Threshold: {{ minConfidence * 100 }}%</div>
+            <v-slider v-model="minConfidence" min="0" max="1" step="0.05" thumb-label :thumb-size="20" hide-details density="compact" color="primary" track-color="primary-lighten-3" :thumb-label-formatter="val => Math.round(val * 100) + '%'"></v-slider>
           </div>
           <div class="filter-actions-right">
             <v-btn variant="text" size="small" @click="resetFilters">
@@ -56,7 +56,7 @@
           <v-icon color="primary">mdi-chart-arc</v-icon>
         </div>
         <div class="stat-content">
-          <div class="stat-value">{{ formatPercentage(predictionStats.accuracy) }}</div>
+          <div class="stat-value">{{ predictionStore.formatPercentage(predictionStore.stats.accuracy) }}</div>
           <div class="stat-label">Overall Accuracy</div>
         </div>
       </div>
@@ -66,7 +66,7 @@
           <v-icon color="success">mdi-arrow-up-bold</v-icon>
         </div>
         <div class="stat-content">
-          <div class="stat-value">{{ formatPercentage(predictionStats.upAccuracy) }}</div>
+          <div class="stat-value">{{ predictionStore.formatPercentage(predictionStore.stats.upAccuracy) }}</div>
           <div class="stat-label">UP Accuracy</div>
         </div>
       </div>
@@ -76,7 +76,7 @@
           <v-icon color="error">mdi-arrow-down-bold</v-icon>
         </div>
         <div class="stat-content">
-          <div class="stat-value">{{ formatPercentage(predictionStats.downAccuracy) }}</div>
+          <div class="stat-value">{{ predictionStore.formatPercentage(predictionStore.stats.downAccuracy) }}</div>
           <div class="stat-label">DOWN Accuracy</div>
         </div>
       </div>
@@ -86,7 +86,7 @@
           <v-icon color="info">mdi-calendar-check</v-icon>
         </div>
         <div class="stat-content">
-          <div class="stat-value">{{ predictionStats.avgDaysToFullfill ? predictionStats.avgDaysToFullfill.toFixed(1) : 'N/A' }}</div>
+          <div class="stat-value">{{ predictionStore.stats.avgDaysToFulfill ? predictionStore.stats.avgDaysToFulfill.toFixed(1) : 'N/A' }}</div>
           <div class="stat-label">Avg. Days to Verify</div>
         </div>
       </div>
@@ -94,7 +94,7 @@
 
     <!-- Predictions Data Table -->
     <div class="data-table-card">
-      <v-data-table :headers="tableHeaders" :items="predictions" :loading="loading.predictions" :items-per-page="itemsPerPage" :page="page" :server-items-length="totalPredictions" @update:page="page = $event" @update:items-per-page="itemsPerPage = $event" class="predictions-table" density="comfortable">
+      <v-data-table :headers="tableHeaders" :items="predictionStore.predictions" :loading="predictionStore.loading.predictions" :items-per-page="itemsPerPage" :page="page" :server-items-length="predictionStore.pagination.totalPredictions" @update:page="page = $event" @update:items-per-page="itemsPerPage = $event" class="predictions-table" density="comfortable">
         <template v-slot:no-data>
           <div class="empty-state">
             <v-icon size="large" color="gray">mdi-chart-timeline-variant</v-icon>
@@ -113,12 +113,12 @@
             </td>
 
             <!-- Date column -->
-            <td>{{ formatDate(item.date) }}</td>
+            <td>{{ predictionStore.formatDate(item.date) }}</td>
 
             <!-- Direction prediction column -->
             <td>
-              <div v-if="item.direction_prediction" class="direction-chip" :class="getDirectionClass(item.direction_prediction)">
-                <v-icon size="x-small">{{ getDirectionIcon(item.direction_prediction) }}</v-icon>
+              <div v-if="item.direction_prediction" class="direction-chip" :class="predictionStore.getDirectionClass(item.direction_prediction)">
+                <v-icon size="x-small">{{ predictionStore.getDirectionIcon(item.direction_prediction) }}</v-icon>
                 {{ item.direction_prediction }}
               </div>
               <div v-else class="text-gray-400">-</div>
@@ -157,8 +157,8 @@
 
             <!-- Actual direction column -->
             <td>
-              <div v-if="item.actual_direction" class="direction-chip" :class="getDirectionClass(item.actual_direction)">
-                <v-icon size="x-small">{{ getDirectionIcon(item.actual_direction) }}</v-icon>
+              <div v-if="item.actual_direction" class="direction-chip" :class="predictionStore.getDirectionClass(item.actual_direction)">
+                <v-icon size="x-small">{{ predictionStore.getDirectionIcon(item.actual_direction) }}</v-icon>
                 {{ item.actual_direction }}
               </div>
               <div v-else class="text-gray-400">-</div>
@@ -192,53 +192,53 @@
 
     <!-- Prediction Details Dialog -->
     <v-dialog v-model="showPredictionDialog" max-width="600px">
-      <div v-if="selectedPrediction" class="prediction-dialog">
+      <div v-if="predictionStore.selectedPrediction" class="prediction-dialog">
         <div class="dialog-header">
           <h2 class="dialog-title">
             Prediction Details
-            <span class="symbol-badge">{{ selectedPrediction.trading_symbol }}</span>
+            <span class="symbol-badge">{{ predictionStore.selectedPrediction.trading_symbol }}</span>
           </h2>
-          <v-btn icon="mdi-close" variant="text" @click="showPredictionDialog = false"></v-btn>
+          <v-btn icon="mdi-close" variant="text" @click="closePredictionDialog"></v-btn>
         </div>
 
         <div class="dialog-content">
           <div class="info-grid">
             <div class="info-item">
               <div class="info-label">Prediction Date</div>
-              <div class="info-value">{{ formatDate(selectedPrediction.date) }}</div>
+              <div class="info-value">{{ predictionStore.formatDate(predictionStore.selectedPrediction.date) }}</div>
             </div>
 
             <div class="info-item">
               <div class="info-label">Strong Move Confidence</div>
               <div class="info-value confidence-display">
-                <div class="value-text">{{ (selectedPrediction.strong_move_confidence * 100).toFixed(1) }}%</div>
-                <v-progress-linear :model-value="selectedPrediction.strong_move_confidence * 100" height="8" rounded color="primary"></v-progress-linear>
+                <div class="value-text">{{ (predictionStore.selectedPrediction.strong_move_confidence * 100).toFixed(1) }}%</div>
+                <v-progress-linear :model-value="predictionStore.selectedPrediction.strong_move_confidence * 100" height="8" rounded color="primary"></v-progress-linear>
               </div>
             </div>
 
-            <div class="info-item" v-if="selectedPrediction.direction_prediction">
+            <div class="info-item" v-if="predictionStore.selectedPrediction.direction_prediction">
               <div class="info-label">Direction Prediction</div>
               <div class="info-value">
-                <div class="prediction-direction-badge" :class="getDirectionClass(selectedPrediction.direction_prediction)">
-                  <v-icon size="small">{{ getDirectionIcon(selectedPrediction.direction_prediction) }}</v-icon>
-                  {{ selectedPrediction.direction_prediction }}
+                <div class="prediction-direction-badge" :class="predictionStore.getDirectionClass(predictionStore.selectedPrediction.direction_prediction)">
+                  <v-icon size="small">{{ predictionStore.getDirectionIcon(predictionStore.selectedPrediction.direction_prediction) }}</v-icon>
+                  {{ predictionStore.selectedPrediction.direction_prediction }}
                 </div>
               </div>
             </div>
 
-            <div class="info-item" v-if="selectedPrediction.direction_confidence">
+            <div class="info-item" v-if="predictionStore.selectedPrediction.direction_confidence">
               <div class="info-label">Direction Confidence</div>
               <div class="info-value confidence-display">
-                <div class="value-text">{{ (selectedPrediction.direction_confidence * 100).toFixed(1) }}%</div>
-                <v-progress-linear :model-value="selectedPrediction.direction_confidence * 100" height="8" rounded :color="selectedPrediction.direction_prediction === 'UP' ? 'success' : 'error'"></v-progress-linear>
+                <div class="value-text">{{ (predictionStore.selectedPrediction.direction_confidence * 100).toFixed(1) }}%</div>
+                <v-progress-linear :model-value="predictionStore.selectedPrediction.direction_confidence * 100" height="8" rounded :color="predictionStore.selectedPrediction.direction_prediction === 'UP' ? 'success' : 'error'"></v-progress-linear>
               </div>
             </div>
 
             <div class="info-item">
               <div class="info-label">Verification Status</div>
               <div class="info-value">
-                <v-chip v-if="selectedPrediction.verified !== null" :color="selectedPrediction.verified ? 'success' : 'error'" size="small" text-color="white">
-                  {{ selectedPrediction.verified ? 'Verified Success' : 'Verified Failure' }}
+                <v-chip v-if="predictionStore.selectedPrediction.verified !== null" :color="predictionStore.selectedPrediction.verified ? 'success' : 'error'" size="small" text-color="white">
+                  {{ predictionStore.selectedPrediction.verified ? 'Verified Success' : 'Verified Failure' }}
                 </v-chip>
                 <v-chip v-else color="warning" size="small" variant="outlined">
                   Pending Verification
@@ -246,43 +246,43 @@
               </div>
             </div>
 
-            <div class="info-item" v-if="selectedPrediction.actual_direction">
+            <div class="info-item" v-if="predictionStore.selectedPrediction.actual_direction">
               <div class="info-label">Actual Direction</div>
               <div class="info-value">
-                <div class="prediction-direction-badge" :class="getDirectionClass(selectedPrediction.actual_direction)">
-                  <v-icon size="small">{{ getDirectionIcon(selectedPrediction.actual_direction) }}</v-icon>
-                  {{ selectedPrediction.actual_direction }}
+                <div class="prediction-direction-badge" :class="predictionStore.getDirectionClass(predictionStore.selectedPrediction.actual_direction)">
+                  <v-icon size="small">{{ predictionStore.getDirectionIcon(predictionStore.selectedPrediction.actual_direction) }}</v-icon>
+                  {{ predictionStore.selectedPrediction.actual_direction }}
                 </div>
               </div>
             </div>
 
-            <div class="info-item" v-if="selectedPrediction.actual_move_percent !== null">
+            <div class="info-item" v-if="predictionStore.selectedPrediction.actual_move_percent !== null">
               <div class="info-label">Actual Move Percent</div>
-              <div class="info-value">{{ selectedPrediction.actual_move_percent.toFixed(2) }}%</div>
+              <div class="info-value">{{ predictionStore.selectedPrediction.actual_move_percent.toFixed(2) }}%</div>
             </div>
 
-            <div class="info-item" v-if="selectedPrediction.days_to_fulfill !== null">
+            <div class="info-item" v-if="predictionStore.selectedPrediction.days_to_fulfill !== null">
               <div class="info-label">Days to Fulfill</div>
-              <div class="info-value">{{ selectedPrediction.days_to_fulfill }} days</div>
+              <div class="info-value">{{ predictionStore.selectedPrediction.days_to_fulfill }} days</div>
             </div>
 
-            <div class="info-item" v-if="selectedPrediction.verification_date">
+            <div class="info-item" v-if="predictionStore.selectedPrediction.verification_date">
               <div class="info-label">Verification Date</div>
-              <div class="info-value">{{ formatDate(selectedPrediction.verification_date) }}</div>
+              <div class="info-value">{{ predictionStore.formatDate(predictionStore.selectedPrediction.verification_date) }}</div>
             </div>
 
             <div class="info-item">
               <div class="info-label">Created At</div>
-              <div class="info-value">{{ formatDateTime(selectedPrediction.created_at) }}</div>
+              <div class="info-value">{{ predictionStore.formatDateTime(predictionStore.selectedPrediction.created_at) }}</div>
             </div>
           </div>
         </div>
 
         <div class="dialog-actions">
-          <v-btn variant="outlined" @click="showPredictionDialog = false">
+          <v-btn variant="outlined" @click="closePredictionDialog">
             Close
           </v-btn>
-          <v-btn color="primary" prepend-icon="mdi-refresh" @click="refreshPrediction(selectedPrediction, true)">
+          <v-btn color="primary" prepend-icon="mdi-refresh" @click="refreshPrediction(predictionStore.selectedPrediction, true)">
             Refresh Prediction
           </v-btn>
         </div>
@@ -293,51 +293,18 @@
 
 <script>
 import { usePredictionStore } from '@/store/prediction.store'
-import { api } from '@/plugins'
 
 export default {
   name: 'PredictionsView',
 
   data() {
     return {
-      // Store
+      // Store instance
       predictionStore: usePredictionStore(),
 
       // UI state
-      page: 1,
-      itemsPerPage: 10,
-      totalPredictions: 0,
       datePickerOpen: false,
       showPredictionDialog: false,
-      selectedPrediction: null,
-
-      // Data
-      predictions: [],
-      predictionStats: {
-        accuracy: 0,
-        totalPredictions: 0,
-        verifiedPredictions: 0,
-        upPredictions: 0,
-        downPredictions: 0,
-        upAccuracy: 0,
-        downAccuracy: 0,
-        avgDaysToFullfill: null
-      },
-
-      // Loading states
-      loading: {
-        predictions: false,
-        stats: false
-      },
-
-      // Filters
-      filters: {
-        direction: null,
-        verified: null,
-        foEligible: true,
-        predictionDate: null,
-        minConfidence: 0.5
-      },
 
       // Table headers
       tableHeaders: [
@@ -372,206 +339,99 @@ export default {
   },
 
   computed: {
-    formattedDateFilter() {
-      if (!this.filters.predictionDate) return '';
-      return new Date(this.filters.predictionDate).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
+    // Computed properties that proxy to store state
+    direction: {
+      get() { return this.predictionStore.filters.direction },
+      set(value) { this.predictionStore.setFilter('direction', value) }
+    },
+    verified: {
+      get() { return this.predictionStore.filters.verified },
+      set(value) { this.predictionStore.setFilter('verified', value) }
+    },
+    foEligible: {
+      get() { return this.predictionStore.filters.foEligible },
+      set(value) { this.predictionStore.setFilter('foEligible', value) }
+    },
+    predictionDate: {
+      get() { return this.predictionStore.filters.predictionDate },
+      set(value) { this.predictionStore.setFilter('predictionDate', value) }
+    },
+    minConfidence: {
+      get() { return this.predictionStore.filters.minConfidence },
+      set(value) { this.predictionStore.setFilter('minConfidence', value) }
+    },
+    page: {
+      get() { return this.predictionStore.pagination.page },
+      set(value) { this.predictionStore.setPagination(value) }
+    },
+    itemsPerPage: {
+      get() { return this.predictionStore.pagination.itemsPerPage },
+      set(value) { this.predictionStore.setPagination(null, value) }
+    },
+    dateFilterDisplay() {
+      return this.predictionStore.formattedDateFilter;
     }
   },
 
   watch: {
-    page() {
-      this.fetchPredictions();
+    // Watch for page changes to fetch new data
+    'predictionStore.pagination.page'() {
+      this.predictionStore.fetchPredictions();
     },
-    itemsPerPage() {
-      this.fetchPredictions();
+    'predictionStore.pagination.itemsPerPage'() {
+      this.predictionStore.fetchPredictions();
     }
   },
 
   methods: {
-    async fetchPredictions() {
-      this.loading.predictions = true;
-
-      try {
-        // Calculate pagination
-        const skip = (this.page - 1) * this.itemsPerPage;
-
-        // Prepare filter params
-        const params = {
-          skip,
-          limit: this.itemsPerPage,
-          min_confidence: this.filters.minConfidence
-        };
-
-        // Add optional filters if set
-        if (this.filters.direction) {
-          params.direction = this.filters.direction;
-        }
-
-        if (this.filters.verified !== null) {
-          params.verified = this.filters.verified;
-        }
-
-        if (this.filters.foEligible !== null) {
-          params.fo_eligible = this.filters.foEligible;
-        }
-
-        if (this.filters.predictionDate) {
-          // Ensure we have a date that's converted to local timezone YYYY-MM-DD 
-          let date;
-
-          if (this.filters.predictionDate instanceof Date) {
-            date = this.filters.predictionDate;
-          } else {
-            date = new Date(this.filters.predictionDate);
-          }
-
-          // Format to YYYY-MM-DD without timezone conversion
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-
-          params.prediction_date = `${year}-${month}-${day}`;
-        }
-
-        // Call API
-        const response = await api.get('/predictions', { params });
-
-        // Update data
-        this.predictions = response.data.predictions;
-        this.totalPredictions = response.data.count;
-      } catch (error) {
-        console.error('Error fetching predictions:', error);
-      } finally {
-        this.loading.predictions = false;
-      }
+    refreshPredictions() {
+      this.predictionStore.fetchPredictionStats();
+      this.predictionStore.fetchPredictions();
     },
 
-    async fetchPredictionStats() {
-      this.loading.stats = true;
-
-      try {
-        const response = await api.get('/predictions/status/accuracy');
-        this.predictionStats = response.data;
-      } catch (error) {
-        console.error('Error fetching prediction stats:', error);
-      } finally {
-        this.loading.stats = false;
-      }
+    resetFilters() {
+      this.predictionStore.resetFilters();
+      this.predictionStore.fetchPredictions();
     },
 
-    async refreshPrediction(prediction, closeDialog = false) {
-      // Set loading state for specific prediction
-      const index = this.predictions.findIndex(p => p.id === prediction.id);
-      if (index !== -1) {
-        this.$set(this.predictions[index], 'refreshing', true);
-      }
-
-      try {
-        const response = await api.post(`/predictions/refresh/${prediction.trading_symbol}`);
-
-        // Update prediction in list
-        if (index !== -1) {
-          this.$set(this.predictions, index, { ...response.data, refreshing: false });
-        }
-
-        // Update selected prediction if in dialog
-        if (this.selectedPrediction && this.selectedPrediction.id === prediction.id) {
-          this.selectedPrediction = { ...response.data };
-        }
-
-        // Close dialog if requested
-        if (closeDialog) {
-          this.showPredictionDialog = false;
-        }
-
-        // Show success message
-        this.$toast.success('Prediction refreshed successfully');
-      } catch (error) {
-        console.error('Error refreshing prediction:', error);
-        this.$toast.error('Failed to refresh prediction');
-
-        // Reset loading state
-        if (index !== -1) {
-          this.$set(this.predictions[index], 'refreshing', false);
-        }
-      }
+    applyFilters() {
+      this.predictionStore.setPagination(1); // Reset to first page
+      this.predictionStore.fetchPredictions();
     },
 
     viewPredictionDetails(prediction) {
-      this.selectedPrediction = prediction;
+      this.predictionStore.setSelectedPrediction(prediction);
       this.showPredictionDialog = true;
+    },
+
+    closePredictionDialog() {
+      this.showPredictionDialog = false;
+      this.predictionStore.clearSelectedPrediction();
     },
 
     viewSymbolDetails(symbol) {
       this.$router.push(`/app/symbols/${symbol}`);
     },
 
-    refreshPredictions() {
-      this.fetchPredictions();
-      this.fetchPredictionStats();
-    },
+    async refreshPrediction(prediction, closeDialog = false) {
+      try {
+        await this.predictionStore.refreshPrediction(prediction);
 
-    resetFilters() {
-      this.filters = {
-        direction: null,
-        verified: null,
-        foEligible: null,
-        predictionDate: null,
-        minConfidence: 0.5
-      };
+        // Show success message
+        this.$toast.success('Prediction refreshed successfully');
 
-      // Reset to first page and refresh
-      this.page = 1;
-      this.fetchPredictions();
-    },
-
-    applyFilters() {
-      // Reset to first page and refresh
-      this.page = 1;
-      this.fetchPredictions();
-    },
-
-    formatDate(dateString) {
-      if (!dateString) return 'N/A';
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    },
-
-    formatDateTime(dateTimeString) {
-      if (!dateTimeString) return 'N/A';
-      return new Date(dateTimeString).toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    },
-
-    formatPercentage(value) {
-      if (value === null || value === undefined) return 'N/A';
-      return (value * 100).toFixed(1) + '%';
-    },
-
-    getDirectionClass(direction) {
-      return direction === 'UP' ? 'direction-up' : 'direction-down';
-    },
-
-    getDirectionIcon(direction) {
-      return direction === 'UP' ? 'mdi-arrow-up-bold' : 'mdi-arrow-down-bold';
+        // Close dialog if requested
+        if (closeDialog) {
+          this.closePredictionDialog();
+        }
+      } catch (error) {
+        this.$toast.error('Failed to refresh prediction');
+      }
     }
   },
 
   mounted() {
-    this.fetchPredictions();
-    this.fetchPredictionStats();
+    this.refreshPredictions();
   }
 }
 </script>

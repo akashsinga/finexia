@@ -28,6 +28,7 @@ export const useSystemStore = defineStore('system', {
       lastRun: null
     },
     pipelineLogs: [],
+    wsConnected: false,
     lastUpdateTime: 'Never',
     loading: false,
     error: null
@@ -114,6 +115,21 @@ export const useSystemStore = defineStore('system', {
       if (Array.isArray(logs) && logs.length > 0) {
         this.pipelineLogs = logs;
       }
+    },
+
+    // Add a single log entry
+    addLogEntry(logEntry) {
+      if (logEntry) {
+        this.pipelineLogs.unshift(logEntry);
+        if (this.pipelineLogs.length > 100) {
+          this.pipelineLogs = this.pipelineLogs.slice(0, 100);
+        }
+      }
+    },
+
+    // Set WebSocket connection status
+    setWsConnected(status) {
+      this.wsConnected = status;
     },
 
     // Refresh logs
@@ -217,6 +233,26 @@ export const useSystemStore = defineStore('system', {
         hour: '2-digit',
         minute: '2-digit'
       });
+    },
+
+    // Handle WebSocket message
+    handleWebSocketMessage(data) {
+      if (data.type === 'status_update') {
+        this.updateSystemStats(data.status);
+        if (data.pipeline_status) {
+          this.updatePipelineStatus(data.pipeline_status);
+        }
+        if (data.logs) {
+          this.updateLogs(data.logs);
+        }
+        this.updateLastRefreshTime();
+      }
+      else if (data.type === 'pipeline_update') {
+        this.updatePipelineStatus(data.pipeline_status);
+        if (data.log_entry) {
+          this.addLogEntry(data.log_entry);
+        }
+      }
     }
   }
 });

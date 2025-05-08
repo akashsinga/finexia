@@ -7,7 +7,7 @@
           <h1 class="page-title">Symbols Explorer</h1>
           <div class="header-stats">
             <div class="stat-badge">
-              <span class="stat-count">{{ filteredSymbols.length }}</span>
+              <span class="stat-count">{{ symbolStore.filteredSymbols.length }}</span>
               <span class="stat-label">symbols</span>
             </div>
             <div v-if="activeFilter === 'fo'" class="fo-badge">
@@ -43,11 +43,11 @@
     </div>
 
     <!-- Symbol Cards Grid -->
-    <div v-if="!symbolStore.loading || filteredSymbols.length > 0" class="grid-container">
+    <div v-if="!symbolStore.loading || symbolStore.filteredSymbols.length > 0" class="grid-container">
       <TransitionGroup name="symbols-list" tag="div" class="symbols-grid">
-        <div v-for="symbol in paginatedSymbols" :key="symbol.trading_symbol" class="symbol-card" @click="viewSymbolDetails(symbol)">
+        <div v-for="symbol in symbolStore.paginatedSymbols" :key="symbol.trading_symbol" class="symbol-card" @click="viewSymbolDetails(symbol)">
           <!-- Colored stripe for instrument type -->
-          <div class="card-stripe" :class="getSymbolBadgeClass(symbol.instrument_type)"></div>
+          <div class="card-stripe" :class="symbolStore.getSymbolBadgeClass(symbol.instrument_type)"></div>
 
           <div class="card-content">
             <!-- Header with symbol and type -->
@@ -57,7 +57,7 @@
                 <div v-if="symbol.fo_eligible" class="fo-indicator">F&O</div>
               </div>
               <div class="type-badge">
-                <v-chip size="x-small" :color="getInstrumentTypeColor(symbol.instrument_type)" class="type-chip">
+                <v-chip size="x-small" :color="symbolStore.getInstrumentTypeColor(symbol.instrument_type)" class="type-chip">
                   {{ symbol.instrument_type }}
                 </v-chip>
               </div>
@@ -94,7 +94,7 @@
       </TransitionGroup>
 
       <!-- Empty state when no symbols found -->
-      <div v-if="filteredSymbols.length === 0 && !symbolStore.loading" class="empty-state">
+      <div v-if="symbolStore.filteredSymbols.length === 0 && !symbolStore.loading" class="empty-state">
         <div class="empty-icon">
           <v-icon size="48" color="gray-300">mdi-finance</v-icon>
         </div>
@@ -106,7 +106,7 @@
       </div>
 
       <!-- Loading skeletons -->
-      <div v-if="symbolStore.loading && filteredSymbols.length === 0" class="symbols-grid">
+      <div v-if="symbolStore.loading && symbolStore.filteredSymbols.length === 0" class="symbols-grid">
         <div v-for="i in 12" :key="i" class="symbol-card is-skeleton">
           <div class="card-stripe skeleton-stripe"></div>
           <div class="card-content">
@@ -129,21 +129,21 @@
     </div>
 
     <!-- Pagination controls -->
-    <div v-if="filteredSymbols.length > 0" class="pagination-wrapper">
-      <v-pagination v-model="currentPage" :length="totalPages" :total-visible="5" density="compact" :disabled="symbolStore.loading" class="pagination"></v-pagination>
+    <div v-if="symbolStore.filteredSymbols.length > 0" class="pagination-wrapper">
+      <v-pagination v-model="currentPage" :length="symbolStore.totalPages" :total-visible="5" density="compact" :disabled="symbolStore.loading" class="pagination"></v-pagination>
     </div>
 
     <!-- Enhanced Symbol Details Dialog -->
     <v-dialog v-model="showDetailsDialog" max-width="700">
       <div v-if="symbolStore.selectedSymbol" class="detail-dialog">
-        <div class="detail-stripe" :class="getSymbolBadgeClass(symbolStore.selectedSymbol.instrument_type)"></div>
+        <div class="detail-stripe" :class="symbolStore.getSymbolBadgeClass(symbolStore.selectedSymbol.instrument_type)"></div>
 
         <div class="dialog-header">
           <div class="dialog-title-area">
             <div class="flex items-center">
               <h2 class="dialog-title">{{ symbolStore.selectedSymbol.trading_symbol }}</h2>
               <div v-if="symbolStore.selectedSymbol.fo_eligible" class="dialog-fo-badge">F&O</div>
-              <div class="type-pill ml-2" :class="getInstrumentPillClass(symbolStore.selectedSymbol.instrument_type)">
+              <div class="type-pill ml-2" :class="symbolStore.getInstrumentPillClass(symbolStore.selectedSymbol.instrument_type)">
                 {{ symbolStore.selectedSymbol.instrument_type }}
               </div>
             </div>
@@ -214,7 +214,7 @@
               <div class="grid-icon"><v-icon size="small">mdi-calendar</v-icon></div>
               <div class="grid-info">
                 <div class="grid-label">Added On</div>
-                <div class="grid-value">{{ formatDate(symbolStore.selectedSymbol.created_at) }}</div>
+                <div class="grid-value">{{ symbolStore.formatDate(symbolStore.selectedSymbol.created_at) }}</div>
               </div>
             </div>
             <div class="grid-item">
@@ -236,7 +236,7 @@
           <v-btn size="small" variant="outlined" color="primary" prepend-icon="mdi-star-outline" @click="addToWatchlist(symbolStore.selectedSymbol)">
             Add to Watchlist
           </v-btn>
-          <v-btn size="small" variant="elevated" color="primary" prepend-icon="mdi-chart-line" @click="$router.push(`/app/symbols/${symbolStore.selectedSymbol.trading_symbol}`); closeDetailsDialog();">
+          <v-btn size="small" variant="elevated" color="primary" prepend-icon="mdi-chart-line" @click="navigateToSymbolDetails(symbolStore.selectedSymbol.trading_symbol)">
             View Details
           </v-btn>
         </div>
@@ -259,41 +259,16 @@ export default {
       activeFilter: 'all',
       showDetailsDialog: false,
       currentPage: 1,
-      pageSize: 24, // Number of items per page
       debouncedSearch: null
     };
   },
 
-  computed: {
-    filteredSymbols() {
-      let result = [...this.symbolStore.symbols];
-
-      // Apply search filter
-      if (this.searchQuery.trim()) {
-        const query = this.searchQuery.toLowerCase();
-        result = result.filter(
-          symbol =>
-            symbol.trading_symbol.toLowerCase().includes(query) ||
-            symbol.name.toLowerCase().includes(query)
-        );
-      }
-
-      // Apply F&O filter
-      if (this.activeFilter === 'fo') {
-        result = result.filter(symbol => symbol.fo_eligible);
-      }
-
-      return result;
+  watch: {
+    activeFilter(newValue) {
+      this.symbolStore.setFilterType(newValue);
     },
-
-    paginatedSymbols() {
-      const startIndex = (this.currentPage - 1) * this.pageSize;
-      const endIndex = startIndex + this.pageSize;
-      return this.filteredSymbols.slice(startIndex, endIndex);
-    },
-
-    totalPages() {
-      return Math.ceil(this.filteredSymbols.length / this.pageSize);
+    currentPage(newValue) {
+      this.symbolStore.setPage(newValue);
     }
   },
 
@@ -311,6 +286,7 @@ export default {
       this.searchQuery = '';
       this.activeFilter = 'all';
       this.currentPage = 1;
+      this.symbolStore.resetFilters();
     },
 
     viewSymbolDetails(symbol) {
@@ -328,54 +304,16 @@ export default {
       // You can add implementation to add the symbol to a watchlist
     },
 
-    getInstrumentTypeColor(type) {
-      const colorMap = {
-        'EQUITY': 'blue',
-        'FUT': 'purple',
-        'OPT': 'orange',
-        'ETF': 'green',
-        'INDEX': 'cyan'
-      };
-      return colorMap[type] || 'grey';
-    },
-
-    getSymbolBadgeClass(type) {
-      const classMap = {
-        'EQUITY': 'badge-eq',
-        'FUT': 'badge-fut',
-        'OPT': 'badge-opt',
-        'ETF': 'badge-etf',
-        'INDEX': 'badge-index'
-      };
-      return classMap[type] || '';
-    },
-
-    getInstrumentPillClass(type) {
-      const classMap = {
-        'EQUITY': 'pill-eq',
-        'FUT': 'pill-fut',
-        'OPT': 'pill-opt',
-        'ETF': 'pill-etf',
-        'INDEX': 'pill-index'
-      };
-      return classMap[type] || '';
-    },
-
-    formatDate(dateString) {
-      if (!dateString) return 'N/A';
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
+    navigateToSymbolDetails(tradingSymbol) {
+      this.$router.push(`/app/symbols/${tradingSymbol}`);
+      this.closeDetailsDialog();
     }
   },
 
   created() {
     // Create debounced search function
     this.debouncedSearch = debounce(() => {
-      this.currentPage = 1; // Reset to first page when searching
+      this.symbolStore.setSearchQuery(this.searchQuery);
     }, 300);
   },
 

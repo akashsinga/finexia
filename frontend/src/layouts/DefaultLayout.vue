@@ -143,7 +143,7 @@ export default {
     authStore() {
       return useAuthStore()
     },
-    marketStatus: function () {
+    marketStatus() {
       const now = this.currentTime
       const open = new Date(now)
       const close = new Date(now)
@@ -156,21 +156,17 @@ export default {
 
       return now >= open && now <= close ? 'LIVE' : 'CLOSED'
     },
-    formattedTime: function () {
+    formattedTime() {
       return this.currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     },
     currentYear() {
       return new Date().getFullYear()
     },
     breadcrumbs() {
-      // Generate breadcrumbs based on current route
       const crumbs = []
 
       // Always include home
-      crumbs.push({
-        title: 'Home',
-        name: 'Dashboard'
-      })
+      crumbs.push({ title: 'Home', name: 'Dashboard' })
 
       // Add current page
       if (this.$route.name && this.$route.name !== 'Dashboard') {
@@ -178,18 +174,12 @@ export default {
         const navItem = this.navItems.find(item => item.pathName === this.$route.name)
 
         if (navItem) {
-          crumbs.push({
-            title: navItem.title,
-            name: navItem.pathName
-          })
+          crumbs.push({ title: navItem.title, name: navItem.pathName })
         }
 
         // If we have a route param like symbol, add it as the final crumb
         if (this.$route.params.symbol) {
-          crumbs.push({
-            title: this.$route.params.symbol,
-            name: null
-          })
+          crumbs.push({ title: this.$route.params.symbol, name: null })
         }
       }
 
@@ -197,14 +187,14 @@ export default {
     }
   },
   methods: {
-    toggleSidebar: function () {
+    toggleSidebar() {
       this.collapsed = !this.collapsed
     },
-    logout: function () {
+    logout() {
       this.authStore.logout()
       this.$router.push({ name: 'Login' })
     },
-    navigateTo: function (routeName) {
+    navigateTo(routeName) {
       if (routeName) {
         this.$router.push({ name: routeName })
       }

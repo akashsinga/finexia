@@ -4,18 +4,19 @@ import { api } from '@/plugins';
 
 export const usePredictionStore = defineStore('prediction', {
   state: () => ({
+    // Prediction lists
     topPredictions: [],
     verifiedPredictions: [],
     predictionsBySymbol: {},
-    stats: {
-      accuracy: 0,
-      accuracyChange: 0,
-      upPredictions: 0,
-      downPredictions: 0,
-      upAccuracy: 0,
-      downAccuracy: 0,
-      avgDaysToFulfill: 0
-    },
+    predictions: [],
+
+    // Prediction details
+    selectedPrediction: null,
+
+    // Pagination
+    pagination: { page: 1, itemsPerPage: 10, totalPredictions: 0 },
+    filters: { direction: null, verified: null, foEligible: true, predictionDate: null, minConfidence: 0.5 },
+    stats: { accuracy: 0, accuracyChange: 0, totalPredictions: 0, upPredictions: 0, downPredictions: 0, upAccuracy: 0, downAccuracy: 0, avgDaysToFulfill: 0 },
     accuracyTrend: {
       labels: [],
       datasets: [{
@@ -27,21 +28,54 @@ export const usePredictionStore = defineStore('prediction', {
         fill: true
       }]
     },
-    loading: {
-      stats: false,
-      topPredictions: false,
-      verifiedPredictions: false,
-      accuracyTrend: false,
-      symbolPredictions: false
-    }
+    loading: { stats: false, topPredictions: false, verifiedPredictions: false, accuracyTrend: false, symbolPredictions: false, predictions: false },
+    error: null
   }),
 
+  getters: {
+    // Get formatted date for display
+    formattedDateFilter: (state) => {
+      if (!state.filters.predictionDate) return '';
+
+      return new Date(state.filters.predictionDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+  },
+
   actions: {
+    /**
+     * Set filter values
+     */
+    setFilter(filterName, value) {
+      this.filters[filterName] = value;
+    },
+
+    /**
+     * Reset all filters to defaults
+     */
+    resetFilters() {
+      this.filters = { direction: null, verified: null, foEligible: null, predictionDate: null, minConfidence: 0.5 };
+
+      // Reset to first page
+      this.pagination.page = 1;
+    },
+
+    /**
+     * Set pagination values
+     */
+    setPagination(page, itemsPerPage) {
+      if (page) this.pagination.page = page;
+      if (itemsPerPage) this.pagination.itemsPerPage = itemsPerPage;
+    },
+
     /**
      * Fetch global prediction statistics
      * @returns {Object} Prediction stats
      */
-    fetchPredictionStats: async function () {
+    async fetchPredictionStats() {
       this.loading.stats = true;
 
       try {
@@ -52,6 +86,7 @@ export const usePredictionStore = defineStore('prediction', {
         this.stats.accuracyChange = response.data.accuracyChange || 0;
         this.stats.upPredictions = response.data.upPredictions || 0;
         this.stats.downPredictions = response.data.downPredictions || 0;
+        this.stats.totalPredictions = response.data.totalPredictions || 0;
 
         if (response.data.directionAccuracy) {
           this.stats.upAccuracy = response.data.directionAccuracy;
@@ -67,6 +102,7 @@ export const usePredictionStore = defineStore('prediction', {
         return response.data;
       } catch (error) {
         console.error('Error fetching prediction stats:', error);
+        this.error = error.message || 'Failed to fetch prediction stats';
         throw error;
       } finally {
         this.loading.stats = false;
@@ -78,7 +114,7 @@ export const usePredictionStore = defineStore('prediction', {
      * @param {string} symbol - Trading symbol
      * @returns {Object} Symbol-specific prediction stats
      */
-    fetchPredictionStatsBySymbol: async function (symbol) {
+    async fetchPredictionStatsBySymbol(symbol) {
       this.loading.stats = true;
 
       try {
@@ -86,6 +122,7 @@ export const usePredictionStore = defineStore('prediction', {
         return response.data;
       } catch (error) {
         console.error('Error fetching prediction stats for symbol:', error);
+        this.error = error.message || 'Failed to fetch prediction stats for symbol';
         throw error;
       } finally {
         this.loading.stats = false;
@@ -98,7 +135,7 @@ export const usePredictionStore = defineStore('prediction', {
      * @param {Object} params - Optional query parameters
      * @returns {Array} Symbol-specific predictions
      */
-    fetchPredictionsBySymbol: async function (symbol, params = {}) {
+    async fetchPredictionsBySymbol(symbol, params = {}) {
       this.loading.symbolPredictions = true;
 
       try {
@@ -110,6 +147,7 @@ export const usePredictionStore = defineStore('prediction', {
         return this.predictionsBySymbol[symbol];
       } catch (error) {
         console.error('Error fetching predictions for symbol:', error);
+        this.error = error.message || 'Failed to fetch predictions for symbol';
         throw error;
       } finally {
         this.loading.symbolPredictions = false;
@@ -122,7 +160,7 @@ export const usePredictionStore = defineStore('prediction', {
      * @param {number} limit - Maximum number of predictions to return
      * @returns {Array} High confidence predictions
      */
-    fetchTopPredictions: async function (confidence = 0.7, limit = 5) {
+    async fetchTopPredictions(confidence = 0.7, limit = 5) {
       this.loading.topPredictions = true;
 
       try {
@@ -135,6 +173,7 @@ export const usePredictionStore = defineStore('prediction', {
         return this.topPredictions;
       } catch (error) {
         console.error('Error fetching top predictions:', error);
+        this.error = error.message || 'Failed to fetch top predictions';
         throw error;
       } finally {
         this.loading.topPredictions = false;
@@ -147,7 +186,7 @@ export const usePredictionStore = defineStore('prediction', {
      * @param {boolean} foEligible - Whether to filter for F&O eligible symbols
      * @returns {Array} Verified predictions
      */
-    fetchVerifiedPredictions: async function (limit = 10, foEligible = true) {
+    async fetchVerifiedPredictions(limit = 10, foEligible = true) {
       this.loading.verifiedPredictions = true;
 
       try {
@@ -159,9 +198,78 @@ export const usePredictionStore = defineStore('prediction', {
         return this.verifiedPredictions;
       } catch (error) {
         console.error('Error fetching verified predictions:', error);
+        this.error = error.message || 'Failed to fetch verified predictions';
         throw error;
       } finally {
         this.loading.verifiedPredictions = false;
+      }
+    },
+
+    /**
+     * Fetch all predictions with filtering and pagination
+     */
+    async fetchPredictions() {
+      this.loading.predictions = true;
+
+      try {
+        // Calculate pagination
+        const skip = (this.pagination.page - 1) * this.pagination.itemsPerPage;
+
+        // Prepare filter params
+        const params = {
+          skip,
+          limit: this.pagination.itemsPerPage,
+          min_confidence: this.filters.minConfidence
+        };
+
+        // Add optional filters if set
+        if (this.filters.direction) {
+          params.direction = this.filters.direction;
+        }
+
+        if (this.filters.verified !== null) {
+          params.verified = this.filters.verified;
+        }
+
+        if (this.filters.foEligible !== null) {
+          params.fo_eligible = this.filters.foEligible;
+        }
+
+        if (this.filters.predictionDate) {
+          // Ensure we have a date that's converted to local timezone YYYY-MM-DD 
+          let date;
+
+          if (this.filters.predictionDate instanceof Date) {
+            date = this.filters.predictionDate;
+          } else {
+            date = new Date(this.filters.predictionDate);
+          }
+
+          // Format to YYYY-MM-DD without timezone conversion
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+
+          params.prediction_date = `${year}-${month}-${day}`;
+        }
+
+        // Call API
+        const response = await api.get('/predictions', { params });
+
+        // Update data
+        this.predictions = response.data.predictions.map(pred => ({
+          ...pred,
+          refreshing: false
+        }));
+        this.pagination.totalPredictions = response.data.count;
+
+        return this.predictions;
+      } catch (error) {
+        console.error('Error fetching predictions:', error);
+        this.error = error.message || 'Failed to fetch predictions';
+        throw error;
+      } finally {
+        this.loading.predictions = false;
       }
     },
 
@@ -170,7 +278,7 @@ export const usePredictionStore = defineStore('prediction', {
      * @param {string} period - Time period (e.g., '30d')
      * @returns {Object} Accuracy trend data for charts
      */
-    fetchAccuracyTrend: async function (period = '30d') {
+    async fetchAccuracyTrend(period = '30d') {
       this.loading.accuracyTrend = true;
 
       try {
@@ -210,6 +318,7 @@ export const usePredictionStore = defineStore('prediction', {
         });
       } catch (error) {
         console.error('Error fetching accuracy trend:', error);
+        this.error = error.message || 'Failed to fetch accuracy trend';
         this.loading.accuracyTrend = false;
         throw error;
       }
@@ -220,23 +329,87 @@ export const usePredictionStore = defineStore('prediction', {
      * @param {string} symbol - Trading symbol to refresh
      * @returns {Object} Updated prediction data
      */
-    refreshPrediction: async function (symbol) {
-      try {
-        const response = await api.post(`/predictions/refresh/${symbol}`);
-        return response.data;
-      } catch (error) {
-        console.error('Error fetching prediction refresh:', error);
-        throw error;
+    async refreshPrediction(prediction) {
+      // Find prediction index and set refreshing state if it's in the predictions array
+      const index = this.predictions.findIndex(p => p.id === prediction.id);
+      if (index !== -1) {
+        this.predictions[index].refreshing = true;
       }
+
+      try {
+        const response = await api.post(`/predictions/refresh/${prediction.trading_symbol}`);
+        const updatedPrediction = { ...response.data, refreshing: false };
+
+        // Update in predictions array if it exists there
+        if (index !== -1) {
+          this.predictions.splice(index, 1, updatedPrediction);
+        }
+
+        // Update selected prediction if this was the one
+        if (this.selectedPrediction && this.selectedPrediction.id === prediction.id) {
+          this.selectedPrediction = updatedPrediction;
+        }
+
+        return updatedPrediction;
+      } catch (error) {
+        console.error('Error refreshing prediction:', error);
+        this.error = error.message || 'Failed to refresh prediction';
+        throw error;
+      } finally {
+        // Ensure refreshing state is reset
+        if (index !== -1) {
+          this.predictions[index].refreshing = false;
+        }
+      }
+    },
+
+    /**
+     * Set the selected prediction for detail view
+     */
+    setSelectedPrediction(prediction) {
+      this.selectedPrediction = prediction;
+    },
+
+    /**
+     * Clear the selected prediction
+     */
+    clearSelectedPrediction() {
+      this.selectedPrediction = null;
     },
 
     /**
      * Clear all predictions data
      */
-    clearPredictions: function () {
+    clearPredictions() {
       this.topPredictions = [];
       this.verifiedPredictions = [];
       this.predictionsBySymbol = {};
+      this.predictions = [];
+      this.selectedPrediction = null;
+    },
+
+    // Utility methods
+    formatDate(dateString) {
+      if (!dateString) return 'N/A';
+      return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    },
+
+    formatDateTime(dateTimeString) {
+      if (!dateTimeString) return 'N/A';
+      return new Date(dateTimeString).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    },
+
+    formatPercentage(value) {
+      if (value === null || value === undefined) return 'N/A';
+      return (value * 100).toFixed(1) + '%';
+    },
+
+    getDirectionClass(direction) {
+      return direction === 'UP' ? 'direction-up' : 'direction-down';
+    },
+
+    getDirectionIcon(direction) {
+      return direction === 'UP' ? 'mdi-arrow-up-bold' : 'mdi-arrow-down-bold';
     }
   }
 });

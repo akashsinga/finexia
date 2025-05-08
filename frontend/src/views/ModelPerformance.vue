@@ -5,7 +5,7 @@
       <div class="filter-header">
         <h1 class="page-title">Model Performance</h1>
         <div class="filter-actions">
-          <v-btn color="primary" size="small" prepend-icon="mdi-refresh" @click="refreshModels" :loading="loading.models">
+          <v-btn color="primary" size="small" prepend-icon="mdi-refresh" @click="refreshModels" :loading="modelStore.loading">
             Refresh
           </v-btn>
         </div>
@@ -42,8 +42,8 @@
           </v-btn-toggle>
         </div>
       </div>
-      <div class="chart-container" v-if="!loading.chart">
-        <v-chart class="chart" :option="performanceChartOption" autoresize />
+      <div class="chart-container" v-if="!modelStore.loading">
+        <v-chart class="chart" :option="modelStore.performanceChartOption" autoresize />
       </div>
       <div v-else class="chart-loading">
         <v-progress-circular indeterminate color="primary"></v-progress-circular>
@@ -56,11 +56,11 @@
         <h2 class="card-title">Models Comparison</h2>
         <div class="card-actions">
           <v-btn size="small" variant="text" icon="mdi-refresh" @click="refreshModels"></v-btn>
-          <v-btn size="small" variant="text" icon="mdi-download" @click="exportModelData"></v-btn>
+          <v-btn size="small" variant="text" icon="mdi-download" @click="downloadModelData"></v-btn>
         </div>
       </div>
 
-      <v-data-table :headers="tableHeaders" :items="topModels" :loading="loading.models" density="comfortable" hover class="model-table">
+      <v-data-table :headers="tableHeaders" :items="modelStore.topModels" :loading="modelStore.loading" density="comfortable" hover class="model-table">
         <template #[`item.trading_symbol`]="{ item }">
           <div class="symbol-cell">
             <span class="symbol">{{ item.trading_symbol }}</span>
@@ -70,7 +70,7 @@
 
         <template #[`item.accuracy`]="{ item }">
           <div class="metric-cell">
-            <div class="metric-value">{{ formatPercentage(item.accuracy) }}</div>
+            <div class="metric-value">{{ modelStore.formatPercentage(item.accuracy) }}</div>
             <div class="metric-bar-container">
               <div class="metric-bar-bg">
                 <div class="metric-bar-fill bg-primary" :style="{ width: `${item.accuracy * 100}%` }"></div>
@@ -81,7 +81,7 @@
 
         <template #[`item.precision`]="{ item }">
           <div class="metric-cell">
-            <div class="metric-value">{{ formatPercentage(item.precision) }}</div>
+            <div class="metric-value">{{ modelStore.formatPercentage(item.precision) }}</div>
             <div class="metric-bar-container">
               <div class="metric-bar-bg">
                 <div class="metric-bar-fill bg-info" :style="{ width: `${item.precision * 100}%` }"></div>
@@ -92,7 +92,7 @@
 
         <template #[`item.recall`]="{ item }">
           <div class="metric-cell">
-            <div class="metric-value">{{ formatPercentage(item.recall) }}</div>
+            <div class="metric-value">{{ modelStore.formatPercentage(item.recall) }}</div>
             <div class="metric-bar-container">
               <div class="metric-bar-bg">
                 <div class="metric-bar-fill bg-success" :style="{ width: `${item.recall * 100}%` }"></div>
@@ -103,7 +103,7 @@
 
         <template #[`item.f1_score`]="{ item }">
           <div class="metric-cell">
-            <div class="metric-value">{{ formatPercentage(item.f1_score) }}</div>
+            <div class="metric-value">{{ modelStore.formatPercentage(item.f1_score) }}</div>
             <div class="metric-bar-container">
               <div class="metric-bar-bg">
                 <div class="metric-bar-fill bg-warning" :style="{ width: `${item.f1_score * 100}%` }"></div>
@@ -113,7 +113,7 @@
         </template>
 
         <template #[`item.evaluation_date`]="{ item }">
-          {{ formatDate(item.evaluation_date) }}
+          {{ modelStore.formatDate(item.evaluation_date) }}
         </template>
 
         <template #[`item.actions`]="{ item }">
@@ -127,42 +127,42 @@
 
     <!-- Model History Dialog -->
     <v-dialog v-model="showHistoryDialog" max-width="800">
-      <div v-if="selectedModelHistory" class="history-dialog">
+      <div v-if="modelStore.selectedModelHistory.length" class="history-dialog">
         <div class="dialog-header">
           <h2 class="dialog-title">
             Performance History
-            <span class="symbol-badge">{{ selectedModelSymbol }}</span>
+            <span class="symbol-badge">{{ modelStore.selectedModelSymbol }}</span>
           </h2>
           <v-btn icon="mdi-close" variant="text" @click="showHistoryDialog = false"></v-btn>
         </div>
 
         <div class="dialog-content">
           <div class="history-chart-container">
-            <v-chart v-if="historyChartOption" class="history-chart" :option="historyChartOption" autoresize />
+            <v-chart v-if="modelStore.historyChartOption" class="history-chart" :option="modelStore.historyChartOption" autoresize />
             <div v-else class="chart-loading">
               <v-progress-circular indeterminate color="primary"></v-progress-circular>
             </div>
           </div>
 
           <div class="history-table">
-            <v-data-table :headers="historyTableHeaders" :items="selectedModelHistory" density="compact" class="mt-4">
+            <v-data-table :headers="historyTableHeaders" :items="modelStore.selectedModelHistory" density="compact" class="mt-4">
               <template #[`item.accuracy`]="{ item }">
-                {{ formatPercentage(item.accuracy) }}
+                {{ modelStore.formatPercentage(item.accuracy) }}
               </template>
               <template #[`item.precision`]="{ item }">
-                {{ formatPercentage(item.precision) }}
+                {{ modelStore.formatPercentage(item.precision) }}
               </template>
               <template #[`item.recall`]="{ item }">
-                {{ formatPercentage(item.recall) }}
+                {{ modelStore.formatPercentage(item.recall) }}
               </template>
               <template #[`item.f1_score`]="{ item }">
-                {{ formatPercentage(item.f1_score) }}
+                {{ modelStore.formatPercentage(item.f1_score) }}
               </template>
               <template #[`item.evaluation_date`]="{ item }">
-                {{ formatDate(item.evaluation_date) }}
+                {{ modelStore.formatDate(item.evaluation_date) }}
               </template>
               <template #[`item.training_date`]="{ item }">
-                {{ formatDate(item.training_date) }}
+                {{ modelStore.formatDate(item.training_date) }}
               </template>
             </v-data-table>
           </div>
@@ -172,7 +172,7 @@
           <v-btn variant="outlined" @click="showHistoryDialog = false">
             Close
           </v-btn>
-          <v-btn color="primary" prepend-icon="mdi-refresh" @click="retrainModel(selectedModelSymbol)">
+          <v-btn color="primary" prepend-icon="mdi-refresh" @click="retrainModel(modelStore.selectedModelSymbol)">
             Retrain Model
           </v-btn>
         </div>
@@ -188,7 +188,6 @@ import { BarChart, LineChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent, LegendComponent, DataZoomComponent } from 'echarts/components';
 import VChart from 'vue-echarts';
 import { useModelStore } from '@/store/model.store';
-import { api } from '@/plugins';
 
 // Register ECharts components
 use([CanvasRenderer, BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent]);
@@ -201,13 +200,8 @@ export default {
   data() {
     return {
       modelStore: useModelStore(),
-      topModels: [],
-      selectedModelHistory: [],
-      selectedModelSymbol: null,
       showHistoryDialog: false,
       selectedChartView: 'f1_score',
-      performanceChartOption: null,
-      historyChartOption: null,
 
       // Filters
       filters: {
@@ -233,13 +227,6 @@ export default {
         { title: 'All Models', value: false },
         { title: 'F&O Eligible Only', value: true }
       ],
-
-      // Loading states
-      loading: {
-        models: false,
-        chart: false,
-        history: false
-      },
 
       // Table headers
       tableHeaders: [
@@ -267,267 +254,41 @@ export default {
       ]
     };
   },
-
+  watch: {
+    selectedChartView() {
+      // This updates the chart when the view changes - the performanceChartOption getter will recompute
+      this.modelStore.$patch({ selectedMetric: this.selectedChartView });
+    }
+  },
   methods: {
-    async refreshModels() {
-      this.loading.models = true;
-      try {
-        const topModels = await this.modelStore.fetchModelPerformance(
-          this.filters.topN,
-          this.filters.metric,
-          this.filters.foEligible
-        );
-
-        this.topModels = topModels.map(model => ({ ...model, retraining: false }));
-        this.updatePerformanceChart();
-      } catch (error) {
-        console.error('Error fetching model performance:', error);
-      } finally {
-        this.loading.models = false;
-      }
+    refreshModels() {
+      return this.modelStore.fetchModelPerformance(
+        this.filters.topN,
+        this.filters.metric,
+        this.filters.foEligible
+      );
     },
 
     applyFilters() {
       this.refreshModels();
     },
 
-    updatePerformanceChart() {
-      this.loading.chart = true;
-
-      // Prepare chart data from the top models
-      const symbols = this.topModels.map(model => model.trading_symbol);
-      const metricData = this.topModels.map(model => (model[this.selectedChartView] * 100).toFixed(1));
-      const metricColors = {
-        'f1_score': '#FBBF24', // warning
-        'accuracy': '#1E3A8A', // primary
-        'precision': '#60A5FA', // info
-        'recall': '#4ADE80'  // success
-      };
-
-      // Create the chart option
-      this.performanceChartOption = {
-        textStyle: {
-          fontFamily: 'Inter'
-        },
-        tooltip: {
-          trigger: 'axis',
-          axisPointer: {
-            type: 'shadow'
-          },
-          formatter: function (params) {
-            return `<div style="font-weight:bold">${params[0].name}</div>
-                 <div style="display:flex;align-items:center;gap:5px;margin:3px 0">
-                   <span style="display:inline-block;width:10px;height:10px;background-color:${params[0].color}"></span>
-                   <span>${params[0].value}%</span>
-                 </div>`;
-          }
-        },
-        grid: {
-          left: '3%',
-          right: '4%',
-          bottom: '3%',
-          top: '10px',
-          containLabel: true
-        },
-        xAxis: {
-          type: 'value',
-          name: 'Percentage (%)',
-          nameLocation: 'middle',
-          nameGap: 30,
-          max: 100,
-          axisLabel: {
-            formatter: '{value}%'
-          }
-        },
-        yAxis: {
-          type: 'category',
-          data: symbols,
-          axisLabel: {
-            formatter: function (value) {
-              return value.length > 8 ? value.substring(0, 8) + '...' : value;
-            }
-          }
-        },
-        series: [
-          {
-            name: this.selectedChartView,
-            type: 'bar',
-            data: metricData,
-            itemStyle: { color: metricColors[this.selectedChartView] || '#1E3A8A' },
-            emphasis: {
-              focus: 'series'
-            },
-            label: {
-              show: true,
-              position: 'right',
-              formatter: '{c}%',
-              fontSize: 12
-            }
-          }
-        ]
-      };
-
-      this.loading.chart = false;
-    },
-
     async viewModelHistory(symbol) {
-      this.loading.history = true;
-      this.selectedModelSymbol = symbol;
       this.showHistoryDialog = true;
-
-      try {
-        // Fetch model history
-        const response = await api.get(`/models/${symbol}/history`);
-        this.selectedModelHistory = response.data || [];
-
-        // Update history chart
-        this.updateHistoryChart();
-      } catch (error) {
-        console.error(`Error fetching history for ${symbol}:`, error);
-      } finally {
-        this.loading.history = false;
-      }
-    },
-
-    updateHistoryChart() {
-      if (!this.selectedModelHistory?.length) {
-        this.historyChartOption = null;
-        return;
-      }
-
-      // Sort by date
-      const sortedHistory = [...this.selectedModelHistory].sort((a, b) =>
-        new Date(a.evaluation_date) - new Date(b.evaluation_date)
-      );
-
-      // Prepare data for chart
-      const dates = sortedHistory.map(item => this.formatDate(item.evaluation_date, 'MMM D, YY'));
-      const accuracyData = sortedHistory.map(item => (item.accuracy * 100).toFixed(1));
-      const precisionData = sortedHistory.map(item => (item.precision * 100).toFixed(1));
-      const recallData = sortedHistory.map(item => (item.recall * 100).toFixed(1));
-      const f1Data = sortedHistory.map(item => (item.f1_score * 100).toFixed(1));
-
-      this.historyChartOption = {
-        tooltip: {
-          trigger: 'axis',
-          formatter: function (params) {
-            let tooltip = `<div style="font-weight:bold">${params[0].name}</div>`;
-            params.forEach(param => {
-              tooltip += `<div style="display:flex;justify-content:space-between;margin:3px 0">
-              <span style="margin-right:15px;display:inline-block;width:10px;height:10px;border-radius:50%;background-color:${param.color}"></span>
-              <span style="flex:1">${param.seriesName}:</span>
-              <span style="font-weight:bold">${param.value}%</span>
-            </div>`;
-            });
-            return tooltip;
-          }
-        },
-        legend: {
-          data: ['Accuracy', 'Precision', 'Recall', 'F1 Score'],
-          top: 0
-        },
-        grid: {
-          left: '3%',
-          right: '4%',
-          bottom: '10%',
-          top: '40px',
-          containLabel: true
-        },
-        xAxis: {
-          type: 'category',
-          data: dates,
-          boundaryGap: false
-        },
-        yAxis: {
-          type: 'value',
-          name: 'Percentage (%)',
-          min: 0,
-          max: 100,
-          axisLabel: {
-            formatter: '{value}%'
-          }
-        },
-        dataZoom: [
-          {
-            type: 'inside',
-            start: 0,
-            end: 100
-          },
-          {
-            start: 0,
-            end: 100
-          }
-        ],
-        series: [
-          {
-            name: 'Accuracy',
-            type: 'line',
-            data: accuracyData,
-            itemStyle: { color: '#1E3A8A' },
-            lineStyle: { width: 2 },
-            symbol: 'circle',
-            symbolSize: 6
-          },
-          {
-            name: 'Precision',
-            type: 'line',
-            data: precisionData,
-            itemStyle: { color: '#60A5FA' },
-            lineStyle: { width: 2 },
-            symbol: 'circle',
-            symbolSize: 6
-          },
-          {
-            name: 'Recall',
-            type: 'line',
-            data: recallData,
-            itemStyle: { color: '#4ADE80' },
-            lineStyle: { width: 2 },
-            symbol: 'circle',
-            symbolSize: 6
-          },
-          {
-            name: 'F1 Score',
-            type: 'line',
-            data: f1Data,
-            itemStyle: { color: '#FBBF24' },
-            lineStyle: { width: 2 },
-            symbol: 'circle',
-            symbolSize: 6
-          }
-        ]
-      };
+      await this.modelStore.fetchModelHistory(symbol);
     },
 
     async retrainModel(symbol) {
-      // Find the model in the array
-      const modelIndex = this.topModels.findIndex(model => model.trading_symbol === symbol);
-      if (modelIndex !== -1) {
-        // Set loading state
-        this.$set(this.topModels[modelIndex], 'retraining', true);
-      }
-
       try {
-        // Call API to retrain
-        await api.post(`/models/train/${symbol}`, {
-          force_retrain: true
-        });
-
-        // Success message
+        await this.modelStore.retrainModel(symbol);
         this.$toast.success(`Retraining started for ${symbol}`);
 
         // If dialog is open, close it
-        if (this.showHistoryDialog && this.selectedModelSymbol === symbol) {
+        if (this.showHistoryDialog && this.modelStore.selectedModelSymbol === symbol) {
           this.showHistoryDialog = false;
         }
       } catch (error) {
-        console.error(`Error retraining model for ${symbol}:`, error);
         this.$toast.error(`Failed to retrain model for ${symbol}`);
-      } finally {
-        // Reset loading state
-        if (modelIndex !== -1) {
-          this.$set(this.topModels[modelIndex], 'retraining', false);
-        }
       }
     },
 
@@ -535,33 +296,8 @@ export default {
       this.$router.push(`/app/symbols/${symbol}`);
     },
 
-    exportModelData() {
-      // Generate CSV data
-      const headers = ['Symbol', 'Accuracy', 'Precision', 'Recall', 'F1 Score', 'Success Count', 'Total Count', 'Last Evaluated'];
-      const csvRows = [];
-
-      // Add headers
-      csvRows.push(headers.join(','));
-
-      // Add data rows
-      this.topModels.forEach(model => {
-        const row = [
-          model.trading_symbol,
-          (model.accuracy * 100).toFixed(2) + '%',
-          (model.precision * 100).toFixed(2) + '%',
-          (model.recall * 100).toFixed(2) + '%',
-          (model.f1_score * 100).toFixed(2) + '%',
-          model.successful_count,
-          model.predictions_count,
-          this.formatDate(model.evaluation_date)
-        ];
-        csvRows.push(row.join(','));
-      });
-
-      // Create CSV content
-      const csvContent = csvRows.join('\n');
-
-      // Download file
+    downloadModelData() {
+      const csvContent = this.modelStore.exportModelData(this.modelStore.topModels);
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -571,16 +307,6 @@ export default {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    },
-
-    formatPercentage(value) {
-      if (value === null || value === undefined) return 'N/A';
-      return (value * 100).toFixed(1) + '%';
-    },
-
-    formatDate(dateString, format = 'MMM D, YYYY') {
-      if (!dateString) return 'N/A';
-      return this.$filters.formatDate(dateString, format);
     }
   },
   mounted() {
@@ -706,7 +432,7 @@ export default {
 }
 
 .dialog-header {
-  @apply flex justify-between items-center p-5 border-b border-gray-200;
+  @apply flex justify-between items-center px-6 py-4 border-b border-gray-200 bg-gray-50;
 }
 
 .dialog-title {

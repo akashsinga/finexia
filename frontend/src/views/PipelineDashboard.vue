@@ -1,7 +1,7 @@
 <template>
   <div class="pipeline-dashboard">
     <!-- Status Card with Pipeline Controls -->
-    <PipelineStatusCard :pipelineStatus="systemStore.pipelineStatus" :isRunning="isPipelineRunning" :wsConnected="wsService?.isConnected()" @configure="showConfigModal = true" @run="runPipeline" />
+    <PipelineStatusCard :pipelineStatus="systemStore.pipelineStatus" :isRunning="systemStore.isPipelineRunning" :wsConnected="systemStore.wsConnected" @configure="showConfigModal = true" @run="runPipeline" />
 
     <!-- Stats Cards Grid -->
     <div class="stats-grid">
@@ -10,12 +10,12 @@
     </div>
 
     <!-- Pipeline Steps Panel -->
-    <PipelineStepsSelector :steps="pipelineSteps" :selectedSteps="selectedSteps" :isRunning="isPipelineRunning" :currentStep="systemStore.pipelineStatus?.currentStep" @select="toggleStep" @select-all="selectAllSteps" />
+    <PipelineStepsSelector :steps="pipelineSteps" :selectedSteps="selectedSteps" :isRunning="systemStore.isPipelineRunning" :currentStep="systemStore.pipelineStatus?.currentStep" @select="toggleStep" @select-all="selectAllSteps" />
 
     <!-- Two-column Layout for Config and Logs -->
     <div class="config-logs-grid">
       <QuickConfigPanel v-model:force="pipelineConfig.force" v-model:scheduleTime="scheduleTime" @save-schedule="saveSchedule" />
-      <RecentLogsPanel :logs="pipelineLogs" :isLoading="isLoading" @refresh="refreshLogs" @view-all="showLogsModal = true" />
+      <RecentLogsPanel :logs="systemStore.pipelineLogs" :isLoading="isLoading" @refresh="refreshLogs" @view-all="showLogsModal = true" />
     </div>
 
     <!-- Status Message -->
@@ -25,7 +25,7 @@
     <PipelineConfigModal v-model="showConfigModal" v-model:selectedSteps="selectedSteps" v-model:pipelineConfig="pipelineConfig" v-model:scheduleTime="scheduleTime" v-model:scheduleFrequency="scheduleFrequency" v-model:selectedDays="selectedDays" :steps="pipelineSteps" :scheduleOptions="scheduleOptions" @save="saveConfig" />
 
     <!-- Logs Modal -->
-    <LogsModal v-model="showLogsModal" :logs="pipelineLogs" />
+    <LogsModal v-model="showLogsModal" :logs="systemStore.pipelineLogs" />
   </div>
 </template>
 
@@ -70,7 +70,6 @@ export default {
         { id: 'prediction', name: 'Prediction Generation', description: 'Generates market predictions using trained models' },
         { id: 'validation', name: 'Result Validation', description: 'Validates previous predictions against actual results' }
       ],
-      pipelineLogs: [],
       pipelineConfig: { force: false, maxSymbols: 100 },
       statusMessage: null,
       statusMessageType: 'info',
@@ -86,11 +85,6 @@ export default {
         { title: '20:00', value: '20:00' }, { title: '22:00', value: '22:00' }
       ]
     };
-  },
-  computed: {
-    isPipelineRunning() {
-      return this.systemStore.isPipelineRunning;
-    }
   },
   methods: {
     initWebSocket() {
@@ -124,46 +118,27 @@ export default {
     handleWsOpen() {
       // Stop polling if it was started as a fallback
       this.stopPolling();
+      this.systemStore.setWsConnected(true);
       console.log('WebSocket connected to system status');
     },
 
-    handleWsMessage(event) {
+    handleWsMessage({ data }) {
       try {
-        const data = JSON.parse(event.data);
-
-        if (data.type === 'status_update') {
-          this.systemStore.updateSystemStats(data.status);
-          if (data.pipeline_status) {
-            this.systemStore.updatePipelineStatus(data.pipeline_status);
-          }
-          if (data.logs) {
-            this.updateLogs(data.logs);
-          }
-          this.systemStore.updateLastRefreshTime();
-        }
-        else if (data.type === 'pipeline_update') {
-          this.systemStore.updatePipelineStatus(data.pipeline_status);
-          if (data.log_entry) {
-            this.pipelineLogs.unshift(data.log_entry);
-            if (this.pipelineLogs.length > 100) {
-              this.pipelineLogs = this.pipelineLogs.slice(0, 100);
-            }
-          }
-        }
-        else if (data.type === 'error') {
-          this.showStatusMessage(data.message, 'error');
-        }
+        // Handle the WebSocket message using the store
+        this.systemStore.handleWebSocketMessage(data);
       } catch (error) {
         console.error('Error processing WebSocket message:', error);
       }
     },
 
     handleWsClose() {
+      this.systemStore.setWsConnected(false);
       // Start polling as fallback
       this.startPolling();
     },
 
     handleWsError() {
+      this.systemStore.setWsConnected(false);
       // Start polling as fallback
       this.startPolling();
     },
@@ -190,7 +165,6 @@ export default {
     async fetchInitialSystemStatus() {
       try {
         await this.systemStore.fetchSystemStatus();
-        this.pipelineLogs = this.systemStore.pipelineLogs;
       } catch (error) {
         console.error('Failed to fetch initial system status:', error);
       }
@@ -199,7 +173,7 @@ export default {
     async refreshLogs() {
       this.isLoading = true;
       try {
-        this.pipelineLogs = await this.systemStore.refreshLogs(50);
+        await this.systemStore.refreshLogs(50);
       } catch (error) {
         console.error('Failed to fetch logs:', error);
       } finally {
@@ -222,6 +196,7 @@ export default {
         this.showStatusMessage('Pipeline execution started successfully', 'success');
         this.fetchInitialSystemStatus();
       } catch (error) {
+        this.showStatusMessage('Failed to start pipeline', 'error');
         console.error('Failed to start pipeline:', error);
       }
     },
@@ -260,12 +235,6 @@ export default {
 
     clearStatusMessage() {
       this.statusMessage = null;
-    },
-
-    updateLogs(logs) {
-      if (Array.isArray(logs) && logs.length > 0) {
-        this.pipelineLogs = logs;
-      }
     }
   },
   mounted() {
