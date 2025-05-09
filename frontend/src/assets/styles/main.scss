@@ -34,4 +34,246 @@
 @layer components {}
 
 /* Utility styles */
-@layer utilities {}
+@layer utilities {
+  /* Symbol badge classes */
+  .badge-eq {
+    @apply bg-blue-600;
+  }
+
+  .badge-fut {
+    @apply bg-purple-600;
+  }
+
+  .badge-opt {
+    @apply bg-orange-500;
+  }
+
+  .badge-etf {
+    @apply bg-green-600;
+  }
+
+  .badge-index {
+    @apply bg-cyan-600;
+  }
+
+  /* Pill style classes */
+  .pill-eq {
+    @apply bg-blue-600;
+  }
+
+  .pill-fut {
+    @apply bg-purple-600;
+  }
+
+  .pill-opt {
+    @apply bg-orange-500;
+  }
+
+  .pill-etf {
+    @apply bg-green-600;
+  }
+
+  .pill-index {
+    @apply bg-cyan-600;
+  }
+
+  /* Status chip classes */
+  .status-verified {
+    @apply bg-success bg-opacity-10 text-success;
+  }
+
+  .status-pending {
+    @apply bg-warning bg-opacity-10 text-warning;
+  }
+
+  .status-failed {
+    @apply bg-error bg-opacity-10 text-error;
+  }
+
+  /* Direction classes */
+  .direction-up {
+    @apply bg-success bg-opacity-10 text-success;
+  }
+
+  .direction-down {
+    @apply bg-error bg-opacity-10 text-error;
+  }
+
+  /* Signal classes for technical analysis */
+  .signal-buy,
+  .signal-strong-buy {
+    @apply text-xs font-bold text-success bg-success bg-opacity-10 px-2 py-0.5 rounded;
+  }
+
+  .signal-sell,
+  .signal-strong-sell {
+    @apply text-xs font-bold text-error bg-error bg-opacity-10 px-2 py-0.5 rounded;
+  }
+
+  .signal-neutral {
+    @apply text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded;
+  }
+
+  .signal-strong-buy {
+    @apply bg-success bg-opacity-20;
+  }
+
+  .signal-strong-sell {
+    @apply bg-error bg-opacity-20;
+  }
+
+  /* Health indicator bars for model performance */
+  .health-good {
+    @apply bg-success;
+  }
+
+  .health-warning {
+    @apply bg-warning;
+  }
+
+  .health-poor {
+    @apply bg-error;
+  }
+
+  /* Strength indicators for support/resistance levels */
+  .strength-Strong {
+    @apply text-success;
+  }
+
+  .strength-Moderate {
+    @apply text-warning;
+  }
+
+  .strength-Weak {
+    @apply text-gray-500;
+  }
+
+  /* Bar chart styles for technical indicators */
+  .bar-buy {
+    @apply bg-success;
+  }
+
+  .bar-sell {
+    @apply bg-error;
+  }
+
+  .bar-neutral {
+    @apply bg-gray-400;
+  }
+
+  /* Confusion matrix cell styles */
+  .cell-correct {
+    @apply bg-green-100;
+  }
+
+  .cell-incorrect {
+    @apply bg-red-100;
+  }
+
+  /* Additional commonly used utility classes for symbol display */
+  .symbol-avatar {
+    @apply w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl font-bold;
+  }
+
+  .fo-badge {
+    @apply px-2 py-0.5 text-xs font-medium bg-primary bg-opacity-10 text-primary rounded;
+  }
+
+  .instrument-badge {
+    @apply px-2 py-0.5 text-xs font-medium text-white rounded;
+  }
+
+  .stat-pill {
+    @apply bg-gray-50 p-3 rounded-lg border border-gray-100;
+  }
+
+  .status-badge {
+    @apply px-2 py-0.5 text-xs font-medium rounded;
+  }
+
+  /* Confidence and indicator display classes */
+  .confidence-bar-container {
+    @apply flex items-center gap-2;
+  }
+
+  .confidence-value {
+    @apply text-xs font-medium w-10;
+  }
+
+  .confidence-bar {
+    @apply h-1.5 bg-gray-200 rounded-full w-16 overflow-hidden;
+  }
+
+  .confidence-bar-fill {
+    @apply h-full bg-primary rounded-full;
+  }
+
+  /* Common general classes that were causing errors */
+  .loading-overlay {
+    @apply absolute top-0 left-0 w-full h-full flex items-center justify-center bg-white bg-opacity-70;
+  }
+
+  .direction-chip {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .period-btn {
+    @apply px-3 py-1 text-xs rounded font-medium text-gray-600 transition-colors;
+  }
+
+  .period-active {
+    @apply bg-primary text-white;
+  }
+
+  /* Card styles that are commonly used */
+  .content-card {
+    @apply bg-gray-50 rounded-lg p-4 border border-gray-100;
+  }
+
+  .metric-card {
+    @apply bg-white p-4 rounded-lg shadow-sm border border-gray-200;
+  }
+
+  .summary-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4;
+  }
+
+  /* Chart overlay styles */
+  .chart-loading {
+    @apply flex justify-center items-center h-full;
+  }
+
+  /* Dialog/modal styles */
+  .dialog-header {
+    @apply flex justify-between items-center px-6 py-4 border-b border-gray-200 bg-gray-50;
+  }
+
+  .dialog-content {
+    @apply p-6;
+  }
+
+  .dialog-actions {
+    @apply flex justify-end gap-2 p-4 bg-gray-50 border-t border-gray-200;
+  }
+
+  /* Status-specific color schemes */
+  .bg-primary-light {
+    @apply bg-primary bg-opacity-10;
+  }
+
+  .bg-success-light {
+    @apply bg-success bg-opacity-10;
+  }
+
+  .bg-error-light {
+    @apply bg-error bg-opacity-10;
+  }
+
+  .bg-info-light {
+    @apply bg-info bg-opacity-10;
+  }
+
+  .bg-warning-light {
+    @apply bg-warning bg-opacity-10;
+  }
+}
